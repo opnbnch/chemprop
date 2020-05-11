@@ -11,7 +11,7 @@ from chemprop.data.utils import get_data, get_data_from_smiles
 from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs
 
 
-def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Optional[List[float]]]:
+def make_predictions(args: PredictArgs, smiles: List[str] = None, serve=False) -> List[Optional[List[float]]]:
     """
     Makes predictions. If smiles is provided, makes predictions on smiles. Otherwise makes predictions on args.test_data.
 
@@ -92,31 +92,32 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
     avg_preds = sum_preds / len(args.checkpoint_paths)
     avg_preds = avg_preds.tolist()
 
-    # Save predictions
-    print(f'Saving predictions to {args.preds_path}')
-    assert len(test_data) == len(avg_preds)
-    makedirs(args.preds_path, isfile=True)
+    if not serve:
+        # Save predictions
+        print(f'Saving predictions to {args.preds_path}')
+        assert len(test_data) == len(avg_preds)
+        makedirs(args.preds_path, isfile=True)
 
-    # Get prediction column names
-    if args.dataset_type == 'multiclass':
-        task_names = [f'{name}_class_{i}' for name in task_names for i in range(args.multiclass_num_classes)]
-    else:
-        task_names = task_names
+        # Get prediction column names
+        if args.dataset_type == 'multiclass':
+            task_names = [f'{name}_class_{i}' for name in task_names for i in range(args.multiclass_num_classes)]
+        else:
+            task_names = task_names
 
-    # Copy predictions over to full_data
-    for full_index, datapoint in enumerate(full_data):
-        valid_index = full_to_valid_indices.get(full_index, None)
-        preds = avg_preds[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
+        # Copy predictions over to full_data
+        for full_index, datapoint in enumerate(full_data):
+            valid_index = full_to_valid_indices.get(full_index, None)
+            preds = avg_preds[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
 
-        for pred_name, pred in zip(task_names, preds):
-            datapoint.row[pred_name] = pred
+            for pred_name, pred in zip(task_names, preds):
+                datapoint.row[pred_name] = pred
 
-    # Save
-    with open(args.preds_path, 'w') as f:
-        writer = csv.DictWriter(f, fieldnames=full_data[0].row.keys())
-        writer.writeheader()
+        # Save
+        with open(args.preds_path, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=full_data[0].row.keys())
+            writer.writeheader()
 
-        for datapoint in full_data:
-            writer.writerow(datapoint.row)
+            for datapoint in full_data:
+                writer.writerow(datapoint.row)
 
     return avg_preds
