@@ -11,7 +11,10 @@ from chemprop.data.utils import get_data, get_data_from_smiles
 from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs
 
 
-def make_predictions(args: PredictArgs, smiles: List[str] = None, serve=False) -> List[Optional[List[float]]]:
+def make_predictions(args: PredictArgs,
+                     smiles: List[str] = None,
+                     dataset: MoleculeDataset = None,
+                     serve: bool = False) -> List[Optional[List[float]]]:
     """
     Makes predictions. If smiles is provided, makes predictions on smiles. Otherwise makes predictions on args.test_data.
 
@@ -41,18 +44,23 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None, serve=False) -
     print('Loading data')
     if smiles is not None:
         full_data = get_data_from_smiles(smiles=smiles, skip_invalid_smiles=False, features_generator=args.features_generator)
+    elif dataset is not None:
+        full_data = dataset
     else:
         full_data = get_data(path=args.test_path, args=args, target_columns=[], skip_invalid_smiles=False)
 
-    print('Validating SMILES')
-    full_to_valid_indices = {}
-    valid_index = 0
-    for full_index in range(len(full_data)):
-        if full_data[full_index].mol is not None:
-            full_to_valid_indices[full_index] = valid_index
-            valid_index += 1
+    if not serve:
+        print('Validating SMILES')
+        full_to_valid_indices = {}
+        valid_index = 0
+        for full_index in range(len(full_data)):
+            if full_data[full_index].mol is not None:
+                full_to_valid_indices[full_index] = valid_index
+                valid_index += 1
 
-    test_data = MoleculeDataset([full_data[i] for i in sorted(full_to_valid_indices.keys())])
+        test_data = MoleculeDataset([full_data[i] for i in sorted(full_to_valid_indices.keys())])
+    else:
+        test_data = full_data
 
     # Edge case if empty list of smiles is provided
     if len(test_data) == 0:
@@ -78,15 +86,27 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None, serve=False) -
     )
 
     print(f'Predicting with an ensemble of {len(args.checkpoint_paths)} models')
-    for checkpoint_path in tqdm(args.checkpoint_paths, total=len(args.checkpoint_paths)):
-        # Load model
-        model = load_checkpoint(checkpoint_path, device=args.device)
-        model_preds = predict(
-            model=model,
-            data_loader=test_data_loader,
-            scaler=scaler
-        )
-        sum_preds += np.array(model_preds)
+    if not serve:
+        for checkpoint_path in tqdm(args.checkpoint_paths, total=len(args.checkpoint_paths)):
+            # Load model
+            model = load_checkpoint(checkpoint_path, device=args.device)
+            model_preds = predict(
+                model=model,
+                data_loader=test_data_loader,
+                scaler=scaler
+            )
+            sum_preds += np.array(model_preds)
+    else:
+        for checkpoint_path in args.checkpoint_paths:
+            # Load model
+            model = load_checkpoint(checkpoint_path, device=args.device)
+            model_preds = predict(
+                model=model,
+                disable_progress_bar=True,
+                data_loader=test_data_loader,
+                scaler=scaler
+            )
+            sum_preds += np.array(model_preds)
 
     # Ensemble predictions
     avg_preds = sum_preds / len(args.checkpoint_paths)
