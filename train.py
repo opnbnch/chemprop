@@ -8,8 +8,11 @@ import sys
 
 
 if __name__ == '__main__':
-    line_args = get_args_list(sys.argv)
+    # Process args from a file
+    # python train.py --data_path path args_file.json
+    line_args, file_name = get_args_list(sys.argv)
     sys.argv = sys.argv + line_args
+    sys.argv.remove(file_name)
 
     args = TrainArgs().parse_args()
     logger = create_logger(name='train', save_dir=args.save_dir, quiet=args.quiet)
