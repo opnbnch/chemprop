@@ -14,6 +14,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from chemprop.data.utils import get_smiles
 from chemprop.features import get_available_features_generators, get_features_generator, load_features, save_features
 from chemprop.utils import makedirs
+from chemprop.process_args_file import get_args_list
+import sys
 
 
 class Args(Tap):
@@ -113,4 +115,10 @@ def generate_and_save_features(args: Args):
 
 
 if __name__ == '__main__':
+    # Process args from a file
+    # python train.py --data_path data --save_path save args_file.json
+    line_args, file_name = get_args_list(sys.argv, len(sys.argv) - 1)
+    sys.argv = sys.argv + line_args
+    sys.argv.remove(file_name)
+
     generate_and_save_features(Args().parse_args())
