@@ -13,6 +13,8 @@ from chemprop.models import MoleculeModel
 from chemprop.nn_utils import param_count
 from chemprop.train import cross_validate
 from chemprop.utils import create_logger, makedirs
+from chemprop.process_args_file import get_args_list
+import sys
 
 
 SPACE = {
@@ -94,4 +96,10 @@ def grid_search(args: HyperoptArgs):
 
 
 if __name__ == '__main__':
+    # Process args from a file
+    # python hyperparamter_optimization.py --data_path path args_file.json
+    line_args, file_name = get_args_list(sys.argv, len(sys.argv) - 1)
+    sys.argv = sys.argv + line_args
+    sys.argv.remove(file_name)
+
     grid_search(HyperoptArgs().parse_args())
