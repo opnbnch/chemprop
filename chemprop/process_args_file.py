@@ -1,14 +1,15 @@
 import json
 
 
-def get_args_list(args):
+def get_args_list(args, pos):
     """
     Create a list in order of key, value for command line args.
     For no value args in .json file use value of [].
     :sys.argv args: command line args
+    :int pos: position in list of the .json file
     """
     args_list = []
-    file_path = args[3]
+    file_path = args[pos]
 
     with open(file_path) as f:
         data = json.load(f)
