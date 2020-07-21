@@ -300,9 +300,10 @@ class TrainArgs(CommonArgs):
 
 class PredictArgs(CommonArgs):
     """PredictArgs includes CommonArgs along with additional arguments used for predicting with a chemprop model."""
-    UQ: bool = False
     test_path: str  # Path to CSV file containing testing data for which predictions will be made
     preds_path: str  # Path to CSV file where predictions will be saved
+    UQ: bool = False  # Output uncertainty quantification
+    # TODO: Add getter/setter for UQ? Test UQ stays set properly in make_predictions.py
 
     @property
     def ensemble_size(self) -> int:
