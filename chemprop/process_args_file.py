@@ -1,4 +1,5 @@
 import json
+from os import path
 
 
 def get_args_list(args, pos):
@@ -10,6 +11,9 @@ def get_args_list(args, pos):
     """
     args_list = []
     file_path = args[pos]
+
+    if not path.exists(file_path):
+        return args
 
     with open(file_path) as f:
         data = json.load(f)

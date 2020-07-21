@@ -300,7 +300,7 @@ class TrainArgs(CommonArgs):
 
 class PredictArgs(CommonArgs):
     """PredictArgs includes CommonArgs along with additional arguments used for predicting with a chemprop model."""
-
+    UQ: bool = False
     test_path: str  # Path to CSV file containing testing data for which predictions will be made
     preds_path: str  # Path to CSV file where predictions will be saved
 
