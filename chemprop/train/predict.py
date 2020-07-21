@@ -21,6 +21,10 @@ def predict(model: nn.Module,
     :return: A list of lists of predictions. The outer list is examples
     while the inner list is tasks.
     """
+
+    # TODO: Only set dropout OFF if args.droupout is 0.
+    # Alternatively we can explicitly specify if UQ is to happen
+    # Because dropout may be desired without UQ
     model.eval()
 
     preds = []

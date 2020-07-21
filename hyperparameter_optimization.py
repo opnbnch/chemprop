@@ -98,8 +98,6 @@ def grid_search(args: HyperoptArgs):
 if __name__ == '__main__':
     # Process args from a file
     # python hyperparamter_optimization.py --data_path path args_file.json
-    line_args, file_name = get_args_list(sys.argv, len(sys.argv) - 1)
-    sys.argv = sys.argv + line_args
-    sys.argv.remove(file_name)
+    sys.argv = get_args_list(sys.argv, len(sys.argv) - 1)
 
     grid_search(HyperoptArgs().parse_args())
