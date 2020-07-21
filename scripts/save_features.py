@@ -117,8 +117,6 @@ def generate_and_save_features(args: Args):
 if __name__ == '__main__':
     # Process args from a file
     # python train.py --data_path data --save_path save args_file.json
-    line_args, file_name = get_args_list(sys.argv, len(sys.argv) - 1)
-    sys.argv = sys.argv + line_args
-    sys.argv.remove(file_name)
+    sys.argv = get_args_list(sys.argv, len(sys.argv) - 1)
 
     generate_and_save_features(Args().parse_args())
