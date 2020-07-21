@@ -19,10 +19,11 @@ def get_args_list(args, pos):
         if k[:2] != "--":
             k = _fix_key_format(k)
 
-        args_list.append(str(k))
-        if type(v) is list and len(v) == 0:
-            continue
-        args_list.append(str(v))
+        if k not in args:
+            args_list.append(str(k))
+            if type(v) is list and len(v) == 0:
+                continue
+            args_list.append(str(v))
 
     return _set_args(args, args_list, file_path)
 
