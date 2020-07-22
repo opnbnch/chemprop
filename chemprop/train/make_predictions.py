@@ -111,13 +111,13 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         avg_preds = sum_preds / len(args.checkpoint_paths)
         avg_preds = avg_preds.tolist()
     else:
-        avg_preds = np.nanmean(sum_batch, 1)
-        breakpoint()
-        avg_UQ = get_avg_UQ(sum_var, avg_preds, sum_batch)
+        avg_preds = np.nanmean(sum_batch, 1).tolist()
+        avg_UQ = get_avg_UQ(sum_var, avg_preds, sum_batch).tolist()
 
     # Save predictions
     print(f'Saving predictions to {args.preds_path}')
     assert len(test_data) == len(avg_preds)
+    assert len(test_data) == len(avg_UQ)
     makedirs(args.preds_path, isfile=True)
 
     # Get prediction column names
@@ -131,8 +131,16 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         valid_index = full_to_valid_indices.get(full_index, None)
         preds = avg_preds[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
 
-        for pred_name, pred in zip(task_names, preds):
-            datapoint.row[pred_name] = pred
+        if args.UQ:
+            cur_UQ = avg_UQ[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
+            datapoint.row['Uncertainty'] = cur_UQ
+ 
+        if type(preds) is list:
+            for pred_name, pred in zip(task_names, preds):
+                datapoint.row[pred_name] = pred
+        else:
+            datapoint.row[task_names[0]] = preds
+
 
     # Save
     with open(args.preds_path, 'w') as f:
