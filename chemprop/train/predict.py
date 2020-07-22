@@ -5,11 +5,9 @@ import torch.nn as nn
 from tqdm import tqdm
 
 from chemprop.data import MoleculeDataLoader, MoleculeDataset, StandardScaler
-from chemprop.args import PredictArgs
 
 
-def predict(args: PredictArgs,
-            model: nn.Module,
+def predict(model: nn.Module,
             data_loader: MoleculeDataLoader,
             disable_progress_bar: bool = False,
             scaler: StandardScaler = None) -> List[List[float]]:
@@ -27,7 +25,9 @@ def predict(args: PredictArgs,
     # TODO: Only set dropout OFF if args.droupout is 0.
     # Alternatively we can explicitly specify if UQ is to happen
     # Because dropout may be desired without UQ
-    if not args.UQ:
+    UQ = model.UQ
+    training = model.training
+    if not UQ:
         model.eval()
 
     preds = []
@@ -38,7 +38,7 @@ def predict(args: PredictArgs,
         mol_batch, features_batch = batch.batch_graph(), batch.features()
 
         # Make predictions
-        if args.UQ and not args.training:
+        if UQ and not training:
             with torch.no_grad():
                 batch_preds, var_preds = model(mol_batch, features_batch)
                 var_preds = var_preds.data.cpu().numpy()

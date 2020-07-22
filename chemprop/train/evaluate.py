@@ -68,8 +68,7 @@ def evaluate_predictions(preds: List[List[float]],
     return results
 
 
-def evaluate(args: TrainArgs,
-             model: nn.Module,
+def evaluate(model: nn.Module,
              data_loader: MoleculeDataLoader,
              num_tasks: int,
              metric_func: Callable,
@@ -89,7 +88,6 @@ def evaluate(args: TrainArgs,
     :return: A list with the score for each task based on `metric_func`.
     """
     preds = predict(
-        args=args,
         model=model,
         data_loader=data_loader,
         scaler=scaler

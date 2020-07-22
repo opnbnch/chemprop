@@ -207,7 +207,6 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
             if isinstance(scheduler, ExponentialLR):
                 scheduler.step()
             val_scores = evaluate(
-                args=args,
                 model=model,
                 data_loader=val_data_loader,
                 num_tasks=args.num_tasks,

@@ -82,7 +82,6 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         # Load model
         model = load_checkpoint(checkpoint_path, device=args.device)
         model_preds = predict(
-            args=args,
             model=model,
             data_loader=test_data_loader,
             scaler=scaler
