@@ -5,13 +5,14 @@ import torch.nn as nn
 from tqdm import tqdm
 
 from chemprop.data import MoleculeDataLoader, MoleculeDataset, StandardScaler
+from chemprop.args import PredictArgs
 
 
-def predict(model: nn.Module,
+def predict(args: PredictArgs,
+            model: nn.Module,
             data_loader: MoleculeDataLoader,
             disable_progress_bar: bool = False,
-            scaler: StandardScaler = None,
-            args: PredictArgs) -> List[List[float]]:
+            scaler: StandardScaler = None) -> List[List[float]]:
     """
     Makes predictions on a dataset using an ensemble of models.
 
