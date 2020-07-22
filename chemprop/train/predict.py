@@ -3,6 +3,7 @@ from typing import List
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+import numpy as np
 
 from chemprop.data import MoleculeDataLoader, MoleculeDataset, StandardScaler
 
@@ -28,20 +29,18 @@ def predict(model: nn.Module,
         model.eval()
 
     preds = []
-
     for batch in tqdm(data_loader, disable=disable_progress_bar):
         # Prepare batch
         batch: MoleculeDataset
         mol_batch, features_batch = batch.batch_graph(), batch.features()
 
         # Make predictions
-        if UQ and not training:
-            with torch.no_grad():
+        with torch.no_grad():
+            if UQ and not training:
                 batch_preds, var_preds = model(mol_batch, features_batch)
                 var_preds = var_preds.data.cpu().numpy()
                 var_preds = var_preds.tolist()
-        else:
-            with torch.no_grad():
+            else:
                 batch_preds = model(mol_batch, features_batch)
 
         batch_preds = batch_preds.data.cpu().numpy()
