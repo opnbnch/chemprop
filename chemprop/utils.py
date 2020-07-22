@@ -341,6 +341,15 @@ def create_logger(name: str, save_dir: str = None, quiet: bool = False) -> loggi
 
 
 def get_avg_UQ(var_array, avg_preds, all_preds):
+    """
+    Method for calcualting uncertainty. Total uncertaintiy is the
+    sum of aleatoric and epistemic uncertainty. This is variational iference
+    adopted from 'Zhang and Lee' and is dependent upon using dropout in training
+    and inference.
+    :np.array var_array: array of variance for each molecule # molecules x 1
+    :np.array avg_preds: array of average prediction for each moledule #molecules x 1
+    :np.array all_preds: array of every prediction for each molecule # molecules x # folds x N
+    """
     aleatoric = np.nanmean(var_array, 1)
 
     for i in range(np.shape(all_preds)[1]):
