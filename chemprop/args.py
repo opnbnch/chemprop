@@ -167,6 +167,7 @@ class TrainArgs(CommonArgs):
     max_lr: float = 1e-3  # Maximum learning rate
     final_lr: float = 1e-4  # Final learning rate
     class_balance: bool = False  # Trains with an equal number of positives and negatives in each batch (only for single task classification)
+    training: bool = True
 
     def __init__(self, *args, **kwargs) -> None:
         super(TrainArgs, self).__init__(*args, **kwargs)
@@ -304,7 +305,7 @@ class PredictArgs(CommonArgs):
     test_path: str  # Path to CSV file containing testing data for which predictions will be made
     preds_path: str  # Path to CSV file where predictions will be saved
     UQ: bool = False  # Output uncertainty quantification
-    # TODO: Add getter/setter for UQ? Test UQ stays set properly in make_predictions.py
+    training: bool = False
 
     @property
     def ensemble_size(self) -> int:
