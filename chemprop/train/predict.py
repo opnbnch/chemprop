@@ -35,6 +35,7 @@ def predict(model: nn.Module,
         mol_batch, features_batch = batch.batch_graph(), batch.features()
 
         # Make predictions
+        breakpoint()
         with torch.no_grad():
             batch_preds = model(mol_batch, features_batch)
 

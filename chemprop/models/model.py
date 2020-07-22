@@ -3,6 +3,7 @@ import torch.nn as nn
 from .mpn import MPN
 from chemprop.args import TrainArgs
 from chemprop.nn_utils import get_activation_function, initialize_weights
+from torch import var
 
 
 class MoleculeModel(nn.Module):
@@ -21,6 +22,7 @@ class MoleculeModel(nn.Module):
         self.classification = args.dataset_type == 'classification'
         self.multiclass = args.dataset_type == 'multiclass'
         self.featurizer = featurizer
+        self.UQ = UQ
 
         self.output_size = args.num_tasks
         if self.multiclass:
@@ -88,7 +90,6 @@ class MoleculeModel(nn.Module):
             ])
 
         # Create FFN model
-        # breakpoint()
         self.ffn = nn.Sequential(*ffn)
 
     def featurize(self, *input):
@@ -98,6 +99,14 @@ class MoleculeModel(nn.Module):
         :return: The feature vectors computed by the MoleculeModel.
         """
         return self.ffn[:-1](self.encoder(*input))
+
+    def get_var(self, *input):
+        """
+        Computes the variance of the final layer before activation
+        :param input: Input
+        """
+        final = self.ffn[:-1](self.encoder(*input))
+        return var(final)
 
     def forward(self, *input):
         """
@@ -110,6 +119,9 @@ class MoleculeModel(nn.Module):
         if self.featurizer:
             return self.featurize(*input)
 
+        if self.UQ and not self.training:
+            variance = self.get_var(*input)
+
         output = self.ffn(self.encoder(*input))
 
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
@@ -120,4 +132,7 @@ class MoleculeModel(nn.Module):
             if not self.training:
                 output = self.multiclass_softmax(output)  # to get probabilities during evaluation, but not during training as we're using CrossEntropyLoss
 
-        return output
+        if self.UQ and not self.training:
+            return output, variance
+        else:
+            return output
