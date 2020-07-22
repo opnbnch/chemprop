@@ -3,7 +3,6 @@ from typing import List
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-import numpy as np
 
 from chemprop.data import MoleculeDataLoader, MoleculeDataset, StandardScaler
 
@@ -55,7 +54,7 @@ def predict(model: nn.Module,
         batch_preds = batch_preds.tolist()
         total_batch_preds.extend(batch_preds)
 
-    if not UQ:
+    if training or not UQ:
         return total_batch_preds
     else:
         return total_batch_preds, total_var_preds
