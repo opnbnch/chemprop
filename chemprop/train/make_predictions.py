@@ -72,8 +72,8 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             sum_preds = np.zeros((len(test_data), num_tasks))
     else:
         # TODO: replace 50 with args.N
-        sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths) * 50))
-        sum_var = np.zeros((len(test_data), len(args.checkpoint_paths) * 50))
+        sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
+        sum_var = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
 
     # Create data loader
     test_data_loader = MoleculeDataLoader(
@@ -96,7 +96,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             sum_preds += np.array(model_preds)
         else:
             # TODO: replace 50 with args.N
-            for i in range(50):
+            for i in range(args.num_preds):
                 batch_preds, var_preds = predict(
                                     model=model,
                                     data_loader=test_data_loader,

@@ -306,6 +306,7 @@ class PredictArgs(CommonArgs):
     preds_path: str  # Path to CSV file where predictions will be saved
     UQ: bool = False  # Output uncertainty quantification
     training: bool = False
+    num_preds: int = 50
 
     @property
     def ensemble_size(self) -> int:
