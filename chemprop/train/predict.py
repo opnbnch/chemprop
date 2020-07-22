@@ -53,4 +53,4 @@ def predict(model: nn.Module,
         batch_preds = batch_preds.tolist()
         preds.extend(batch_preds)
 
-    return preds
+    return preds, None
