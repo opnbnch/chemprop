@@ -12,7 +12,7 @@ def get_args_list(args, pos):
     args_list = []
     file_path = args[pos]
 
-    if not path.exists(file_path):
+    if not (path.exists(file_path) and file_path[-5:] == ".json"):
         return args
 
     with open(file_path) as f:

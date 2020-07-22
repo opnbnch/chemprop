@@ -88,6 +88,7 @@ class MoleculeModel(nn.Module):
             ])
 
         # Create FFN model
+        # breakpoint()
         self.ffn = nn.Sequential(*ffn)
 
     def featurize(self, *input):
