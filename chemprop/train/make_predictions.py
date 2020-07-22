@@ -8,7 +8,7 @@ from .predict import predict
 from chemprop.args import PredictArgs, TrainArgs
 from chemprop.data import MoleculeDataLoader, MoleculeDataset
 from chemprop.data.utils import get_data, get_data_from_smiles
-from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs, get_avg_UQ
+from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs
 
 
 def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Optional[List[float]]]:
@@ -113,7 +113,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         avg_preds = avg_preds.tolist()
     else:
         avg_preds = np.nanmean(sum_batch, 1)
-        avg_UQ = get_avg_UQ(sum_var, avg_preds)
+        # avg_UQ = get_avg_UQ(sum_var, avg_preds)
 
     # Save predictions
     print(f'Saving predictions to {args.preds_path}')

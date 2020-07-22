@@ -28,7 +28,8 @@ def predict(model: nn.Module,
     if not UQ:
         model.eval()
 
-    preds = []
+    total_batch_preds = []
+    total_var_preds = []
     for batch in tqdm(data_loader, disable=disable_progress_bar):
         # Prepare batch
         batch: MoleculeDataset
@@ -40,6 +41,7 @@ def predict(model: nn.Module,
                 batch_preds, var_preds = model(mol_batch, features_batch)
                 var_preds = var_preds.data.cpu().numpy()
                 var_preds = var_preds.tolist()
+                total_var_preds.extend(var_preds)
             else:
                 batch_preds = model(mol_batch, features_batch)
 
@@ -51,6 +53,9 @@ def predict(model: nn.Module,
 
         # Collect vectors
         batch_preds = batch_preds.tolist()
-        preds.extend(batch_preds)
+        total_batch_preds.extend(batch_preds)
 
-    return preds, None
+    if not UQ:
+        return total_batch_preds
+    else:
+        return total_batch_preds, total_var_preds
