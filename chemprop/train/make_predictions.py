@@ -8,7 +8,7 @@ from .predict import predict
 from chemprop.args import PredictArgs, TrainArgs
 from chemprop.data import MoleculeDataLoader, MoleculeDataset
 from chemprop.data.utils import get_data, get_data_from_smiles
-from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs
+from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs, get_avg_UQ
 
 
 def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Optional[List[float]]]:
@@ -65,10 +65,15 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         test_data.normalize_features(features_scaler)
 
     # Predict with each model individually and sum predictions
-    if args.dataset_type == 'multiclass':
-        sum_preds = np.zeros((len(test_data), num_tasks, args.multiclass_num_classes))
+    if not args.UQ:
+        if args.dataset_type == 'multiclass':
+            sum_preds = np.zeros((len(test_data), num_tasks, args.multiclass_num_classes))
+        else:
+            sum_preds = np.zeros((len(test_data), num_tasks))
     else:
-        sum_preds = np.zeros((len(test_data), num_tasks))
+        # TODO: replace 50 with args.N
+        sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths) * 50))
+        sum_var = np.zeros((len(test_data), len(args.checkpoint_paths) * 50))
 
     # Create data loader
     test_data_loader = MoleculeDataLoader(
@@ -82,20 +87,37 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         # Load model
         model = load_checkpoint(checkpoint_path, device=args.device)
         model.training = False
-        model_preds = predict(
-            model=model,
-            data_loader=test_data_loader,
-            scaler=scaler
-        )
-        sum_preds += np.array(model_preds)
+        if not args.UQ:
+            model_preds = predict(
+                model=model,
+                data_loader=test_data_loader,
+                scaler=scaler
+            )
+            sum_preds += np.array(model_preds)
+        else:
+            # TODO: replace 50 with args.N
+            for i in range(50):
+                batch_preds, var_preds = predict(
+                                    model=model,
+                                    data_loader=test_data_loader,
+                                    scaler=scaler
+                                    )
+                batch_preds = [item for sublist in batch_preds for item in sublist]
+                sum_batch[:, i * len(args.checkpoint_paths)] = batch_preds
+                sum_var[:, i * len(args.checkpoint_paths)] = var_preds
 
     # Ensemble predictions
-    avg_preds = sum_preds / len(args.checkpoint_paths)
-    avg_preds = avg_preds.tolist()
+    if not args.UQ:
+        avg_preds = sum_preds / len(args.checkpoint_paths)
+        avg_preds = avg_preds.tolist()
+    else:
+        avg_preds = np.nanmean(sum_batch, 1).tolist()
+        avg_UQ = get_avg_UQ(sum_var, avg_preds, sum_batch).tolist()
 
     # Save predictions
     print(f'Saving predictions to {args.preds_path}')
     assert len(test_data) == len(avg_preds)
+    assert len(test_data) == len(avg_UQ)
     makedirs(args.preds_path, isfile=True)
 
     # Get prediction column names
@@ -109,8 +131,16 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         valid_index = full_to_valid_indices.get(full_index, None)
         preds = avg_preds[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
 
-        for pred_name, pred in zip(task_names, preds):
-            datapoint.row[pred_name] = pred
+        if args.UQ:
+            cur_UQ = avg_UQ[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
+            datapoint.row['Uncertainty'] = cur_UQ
+ 
+        if type(preds) is list:
+            for pred_name, pred in zip(task_names, preds):
+                datapoint.row[pred_name] = pred
+        else:
+            datapoint.row[task_names[0]] = preds
+
 
     # Save
     with open(args.preds_path, 'w') as f:
