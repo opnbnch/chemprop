@@ -11,7 +11,7 @@ def predict(model: nn.Module,
             data_loader: MoleculeDataLoader,
             disable_progress_bar: bool = False,
             scaler: StandardScaler = None,
-            args) -> List[List[float]]:
+            args: PredictArgs) -> List[List[float]]:
     """
     Makes predictions on a dataset using an ensemble of models.
 
