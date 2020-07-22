@@ -22,9 +22,6 @@ def predict(model: nn.Module,
     while the inner list is tasks.
     """
 
-    # TODO: Only set dropout OFF if args.droupout is 0.
-    # Alternatively we can explicitly specify if UQ is to happen
-    # Because dropout may be desired without UQ
     UQ = model.UQ
     training = model.training
     if not UQ:

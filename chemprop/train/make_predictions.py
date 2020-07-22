@@ -81,6 +81,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
     for checkpoint_path in tqdm(args.checkpoint_paths, total=len(args.checkpoint_paths)):
         # Load model
         model = load_checkpoint(checkpoint_path, device=args.device)
+        model.training = False
         model_preds = predict(
             model=model,
             data_loader=test_data_loader,

@@ -107,7 +107,7 @@ class MoleculeModel(nn.Module):
         :param input: Input
         """
         final = self.ffn[:-1](self.encoder(*input))
-        return var(final)
+        return var(final, dim=1)
 
     def forward(self, *input):
         """
