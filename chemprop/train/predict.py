@@ -10,7 +10,8 @@ from chemprop.data import MoleculeDataLoader, MoleculeDataset, StandardScaler
 def predict(model: nn.Module,
             data_loader: MoleculeDataLoader,
             disable_progress_bar: bool = False,
-            scaler: StandardScaler = None) -> List[List[float]]:
+            scaler: StandardScaler = None,
+            args) -> List[List[float]]:
     """
     Makes predictions on a dataset using an ensemble of models.
 
@@ -25,7 +26,8 @@ def predict(model: nn.Module,
     # TODO: Only set dropout OFF if args.droupout is 0.
     # Alternatively we can explicitly specify if UQ is to happen
     # Because dropout may be desired without UQ
-    model.eval()
+    if not args.UQ:
+        model.eval()
 
     preds = []
 
@@ -36,8 +38,14 @@ def predict(model: nn.Module,
 
         # Make predictions
         breakpoint()
-        with torch.no_grad():
-            batch_preds = model(mol_batch, features_batch)
+        if args.UQ:
+            with torch.no_grad():
+                batch_preds, var_preds = model(mol_batch, features_batch)
+                var_preds = var_preds.data.cpu().numpy()
+                var_preds = var_preds.tolist()
+        else:
+            with torch.no_grad():
+                batch_preds = model(mol_batch, features_batch)
 
         batch_preds = batch_preds.data.cpu().numpy()
 
