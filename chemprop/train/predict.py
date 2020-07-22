@@ -39,7 +39,7 @@ def predict(args: PredictArgs,
 
         # Make predictions
         breakpoint()
-        if args.UQ:
+        if args.UQ and not args.training:
             with torch.no_grad():
                 batch_preds, var_preds = model(mol_batch, features_batch)
                 var_preds = var_preds.data.cpu().numpy()

@@ -5,6 +5,7 @@ import torch.nn as nn
 
 from .predict import predict
 from chemprop.data import MoleculeDataLoader, StandardScaler
+from chemprop.args import TrainArgs
 
 
 def evaluate_predictions(preds: List[List[float]],
@@ -67,7 +68,8 @@ def evaluate_predictions(preds: List[List[float]],
     return results
 
 
-def evaluate(model: nn.Module,
+def evaluate(args: TrainArgs,
+             model: nn.Module,
              data_loader: MoleculeDataLoader,
              num_tasks: int,
              metric_func: Callable,
@@ -87,6 +89,7 @@ def evaluate(model: nn.Module,
     :return: A list with the score for each task based on `metric_func`.
     """
     preds = predict(
+        args=args,
         model=model,
         data_loader=data_loader,
         scaler=scaler
