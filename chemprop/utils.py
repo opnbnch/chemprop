@@ -340,7 +340,7 @@ def create_logger(name: str, save_dir: str = None, quiet: bool = False) -> loggi
     return logger
 
 
-def get_avg_UQ(var_array, avg_preds, all_preds):
+def get_avg_UQ(var_array, avg_preds, all_preds, return_both=False):
     """
     Method for calcualting uncertainty. Total uncertaintiy is the
     sum of aleatoric and epistemic uncertainty. This is variational iference
@@ -349,6 +349,7 @@ def get_avg_UQ(var_array, avg_preds, all_preds):
     :np.array var_array: array of variance for each molecule # molecules x 1
     :np.array avg_preds: array of average prediction for each moledule #molecules x 1
     :np.array all_preds: array of every prediction for each molecule # molecules x # folds x N
+    :bool return_both: bool to get separate aleatoric and epistemic uncertainty
     """
     aleatoric = np.nanmean(var_array, 1)
 
@@ -357,7 +358,10 @@ def get_avg_UQ(var_array, avg_preds, all_preds):
 
     epistemic = np.nanmean(all_preds, 1)
 
-    return aleatoric + epistemic
+    if return_both:
+        return aleatoric, epistemic
+    else:
+        return aleatoric + epistemic
 
 
 def save_smiles_splits(train_data: MoleculeDataset,

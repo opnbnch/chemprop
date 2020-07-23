@@ -71,7 +71,6 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         else:
             sum_preds = np.zeros((len(test_data), num_tasks))
     else:
-        # TODO: replace 50 with args.N
         sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
         sum_var = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
 
@@ -95,7 +94,6 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             )
             sum_preds += np.array(model_preds)
         else:
-            # TODO: replace 50 with args.N
             for i in range(args.num_preds):
                 batch_preds, var_preds = predict(
                                     model=model,
@@ -113,11 +111,11 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
     else:
         avg_preds = np.nanmean(sum_batch, 1).tolist()
         avg_UQ = get_avg_UQ(sum_var, avg_preds, sum_batch).tolist()
+        assert len(test_data) == len(avg_UQ)
 
     # Save predictions
     print(f'Saving predictions to {args.preds_path}')
     assert len(test_data) == len(avg_preds)
-    assert len(test_data) == len(avg_UQ)
     makedirs(args.preds_path, isfile=True)
 
     # Get prediction column names
