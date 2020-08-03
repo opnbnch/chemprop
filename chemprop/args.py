@@ -61,7 +61,7 @@ class CommonArgs(Tap):
     max_data_size: int = None  # Maximum number of data points to load
     num_workers: int = 8   # Number of workers for the parallel data loading (0 means sequential)
     batch_size: int = 50  # Batch size
-    num_preds: int = 50  # Number of preds for Dropout VI (only used for that)
+    num_preds: int = 50  # Number of preds to avg for Dropout VI (only used for that)
 
     def __init__(self, *args, **kwargs) -> None:
         super(CommonArgs, self).__init__(*args, **kwargs)
@@ -150,7 +150,7 @@ class TrainArgs(CommonArgs):
     depth: int = 3  # Number of message passing steps
     dropout: float = 0.0  # Dropout probability
     activation: Literal['ReLU', 'LeakyReLU', 'PReLU', 'tanh', 'SELU', 'ELU'] = 'ReLU'  # Activation function
-    uncertainty: Literal['Dropout VI', 'Ensembles'] = None  # How to calculate uncertainty
+    uncertainty: Literal['Dropout_VI', 'Ensembles'] = None  # How to calculate uncertainty
     atom_messages: bool = False  # Centers messages on atoms instead of on bonds
     undirected: bool = False  # Undirected edges (always sum the two relevant bond vectors)
     ffn_hidden_size: int = None  # Hidden dim for higher-capacity FFN (defaults to hidden_size)
