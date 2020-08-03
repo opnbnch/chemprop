@@ -23,7 +23,6 @@ class MoleculeModel(nn.Module):
         self.multiclass = args.dataset_type == 'multiclass'
         self.featurizer = featurizer
         self.UQ = args.UQ
-        self.training = args.training
 
         self.output_size = args.num_tasks
         if self.multiclass:
