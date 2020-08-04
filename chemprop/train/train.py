@@ -37,7 +37,7 @@ def train(model: nn.Module,
     :return: The total number of iterations (training examples) trained on so far.
     """
     debug = logger.debug if logger is not None else print
-    
+
     model.train()
     loss_sum, iter_count = 0, 0
 
@@ -50,7 +50,10 @@ def train(model: nn.Module,
 
         # Run model
         model.zero_grad()
-        preds = model(mol_batch, features_batch)
+        if args.uncertainty and args.regression:
+            preds, variance = model(mol_batch, features_batch)
+        else:
+            preds = model(mol_batch, features_batch)
 
         # Move tensors to correct device
         mask = mask.to(preds.device)

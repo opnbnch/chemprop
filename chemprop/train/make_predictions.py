@@ -8,7 +8,8 @@ from .predict import predict
 from chemprop.args import PredictArgs, TrainArgs
 from chemprop.data import MoleculeDataLoader, MoleculeDataset
 from chemprop.data.utils import get_data, get_data_from_smiles
-from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs, get_avg_UQ
+from chemprop.utils import load_args, load_checkpoint, load_scalers, makedirs
+from .evaluate_UQ import uncertainty_estimator_builder
 
 
 def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Optional[List[float]]]:
@@ -65,14 +66,18 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         test_data.normalize_features(features_scaler)
 
     # Predict with each model individually and sum predictions
-    if not args.UQ:
+    if not args.uncertainty:
         if args.dataset_type == 'multiclass':
             sum_preds = np.zeros((len(test_data), num_tasks, args.multiclass_num_classes))
         else:
             sum_preds = np.zeros((len(test_data), num_tasks))
     else:
-        sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
-        sum_var = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
+        if args.uncertainty == 'Dropout_VI':
+            sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
+            sum_var = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
+        else:
+            sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths)))
+            sum_var = np.zeros((len(test_data), len(args.checkpoint_paths)))
 
     # Create data loader
     test_data_loader = MoleculeDataLoader(
@@ -80,13 +85,15 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         batch_size=args.batch_size,
         num_workers=args.num_workers
     )
+    if args.uncertainty:
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, test_data_loader, scaler)
 
     print(f'Predicting with an ensemble of {len(args.checkpoint_paths)} models')
-    for checkpoint_path in tqdm(args.checkpoint_paths, total=len(args.checkpoint_paths)):
+    for N, checkpoint_path in tqdm(enumerate(args.checkpoint_paths), total=len(args.checkpoint_paths)):
         # Load model
         model = load_checkpoint(checkpoint_path, device=args.device)
         model.training = False
-        if not args.UQ:
+        if not args.uncertainty:
             model_preds = predict(
                 model=model,
                 data_loader=test_data_loader,
@@ -94,24 +101,17 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             )
             sum_preds += np.array(model_preds)
         else:
-            for i in range(args.num_preds):
-                batch_preds, var_preds = predict(
-                                    model=model,
-                                    data_loader=test_data_loader,
-                                    scaler=scaler
-                                    )
-                batch_preds = [item for sublist in batch_preds for item in sublist]
-                sum_batch[:, i * len(args.checkpoint_paths)] = batch_preds
-                sum_var[:, i * len(args.checkpoint_paths)] = var_preds
+            sum_batch, sum_var = uncertainty_estimator.UQ_predict(sum_batch, sum_var, N)
 
     # Ensemble predictions
-    if not args.UQ:
+    if not args.uncertainty:
         avg_preds = sum_preds / len(args.checkpoint_paths)
         avg_preds = avg_preds.tolist()
     else:
-        avg_preds = np.nanmean(sum_batch, 1).tolist()
-        avg_UQ = get_avg_UQ(sum_var, avg_preds, sum_batch).tolist()
-        assert len(test_data) == len(avg_UQ)
+        avg_preds, avg_UQ = uncertainty_estimator.calculate_UQ(sum_batch, sum_var)
+        if type(avg_UQ) is tuple:
+            aleatoric = avg_UQ[0]
+            epistemic = avg_UQ[1]
 
     # Save predictions
     print(f'Saving predictions to {args.preds_path}')
@@ -129,10 +129,16 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         valid_index = full_to_valid_indices.get(full_index, None)
         preds = avg_preds[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
 
-        if args.UQ:
-            cur_UQ = avg_UQ[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
-            datapoint.row['Uncertainty'] = cur_UQ
- 
+        if args.uncertainty:
+            if not args.split_UQ:
+                cur_UQ = avg_UQ[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
+                datapoint.row['Uncertainty'] = cur_UQ
+            elif args.split_UQ:
+                cur_al = aleatoric[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
+                cur_ep = epistemic[valid_index] if valid_index is not None else ['Invalid SMILES'] * len(task_names)
+                datapoint.row['Aleatoric'] = cur_al
+                datapoint.row['Epistemic'] = cur_ep
+
         if type(preds) is list:
             for pred_name, pred in zip(task_names, preds):
                 datapoint.row[pred_name] = pred

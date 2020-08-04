@@ -22,9 +22,9 @@ def predict(model: nn.Module,
     while the inner list is tasks.
     """
 
-    UQ = model.UQ
+    UQ = model.uncertainty
     training = model.training
-    if not UQ:
+    if UQ != 'Dropout_VI':
         model.eval()
 
     total_batch_preds = []
