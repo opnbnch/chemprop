@@ -50,7 +50,7 @@ def train(model: nn.Module,
 
         # Run model
         model.zero_grad()
-        if args.uncertainty and args.regression:
+        if args.uncertainty and args.dataset_type == 'regression':
             preds, variance = model(mol_batch, features_batch)
         else:
             preds = model(mol_batch, features_batch)

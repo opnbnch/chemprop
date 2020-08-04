@@ -18,12 +18,12 @@ class Dropout_VI:
         self.split_UQ = args.split_UQ
         self.num_preds = args.num_preds
 
-    def UQ_predict(self, sum_batch, sum_var, N):
+    def UQ_predict(self, model, sum_batch, sum_var, N):
         for i in range(self.num_preds):
             batch_preds, var_preds = predict(
-                                        model=self.model,
+                                        model=model,
                                         data_loader=self.data_loader,
-                                        disable_progress_bar=True,
+                                        disable_progress_bar=False,
                                         scaler=self.scaler
                                         )
             batch_preds = [item for sublist in batch_preds for item in sublist]

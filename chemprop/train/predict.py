@@ -41,6 +41,8 @@ def predict(model: nn.Module,
                 var_preds = var_preds.data.cpu().numpy()
                 var_preds = var_preds.tolist()
                 total_var_preds.extend(var_preds)
+            elif UQ:
+                batch_preds, var_preds = model(mol_batch, features_batch)
             else:
                 batch_preds = model(mol_batch, features_batch)
 
