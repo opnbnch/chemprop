@@ -164,6 +164,8 @@ def load_task_names(path: str) -> List[str]:
     return load_args(path).task_names
 
 
+# TODO: Ensure this works with torch arrays and get log_var.
+# TODO: Incoroporate this into loss calculations in train
 def heteroscedastic_loss(true, mean, log_var):
     """
     Compute the heteroscedastic loss for regression.
