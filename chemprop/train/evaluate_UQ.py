@@ -6,10 +6,9 @@ from .predict import predict
 from chemprop.utils import get_avg_UQ
 
 
-class Dropout_VI:
+class Uncertainty_estimator:
     """
-    Uncertainty method for calculating aleatoric + epistemic UQ
-    by using dropout and averaging over a number of predictions.
+    General class with methods for UQ.
     """
 
     def __init__(self, args, data_loader, scaler):
@@ -17,6 +16,16 @@ class Dropout_VI:
         self.scaler = scaler
         self.data_loader = data_loader
         self.split_UQ = args.split_UQ
+
+
+class Dropout_VI(Uncertainty_estimator):
+    """
+    Uncertainty method for calculating aleatoric + epistemic UQ
+    by using dropout and averaging over a number of predictions.
+    """
+
+    def __init__(self, args, data_loader, scaler):
+        super().__init__(args, data_loader, scaler)
         self.num_preds = args.num_preds
 
     def UQ_predict(self, model, sum_batch, sum_var, N):
@@ -39,17 +48,14 @@ class Dropout_VI:
         return avg_preds, avg_UQ
 
 
-class Ensemble_estimator:
+class Ensemble_estimator(Uncertainty_estimator):
     """
     Uncertainty method for calculating UQ by averaging
     over a number of ensembles of models.
     """
 
     def __init__(self, args, data_loader, scaler):
-        self.args = args
-        self.scaler = scaler
-        self.data_loader = data_loader
-        self.split_UQ = args.split_UQ
+        super().__init__(args, data_loader, scaler)
 
 
 def uncertainty_estimator_builder(uncertainty_method):
