@@ -263,8 +263,9 @@ class TrainArgs(CommonArgs):
             raise ValueError(f'Metric "{self.metric}" invalid for dataset type "{self.dataset_type}".')
         
         # Ensure UQ is only for regression
-        if self.dataset_type == 'classification' and self.uncertainty is not None:
-            raise ValueError('Currently we cannot compute uncertainty for classification datasets :(')
+        if self.dataset_type == 'classification' or self.dataset_type == 'multiclass':
+            if self.uncertainty is not None:
+                raise ValueError('Currently we cannot compute uncertainty for classification datasets :(')
         # Validate class balance
         if self.class_balance and self.dataset_type != 'classification':
             raise ValueError('Class balance can only be applied if the dataset type is classification.')
