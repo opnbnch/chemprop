@@ -22,8 +22,7 @@ class MoleculeModel(nn.Module):
         self.classification = args.dataset_type == 'classification'
         self.multiclass = args.dataset_type == 'multiclass'
         self.featurizer = featurizer
-        self.UQ = args.UQ
-        self.training = args.training
+        self.uncertainty = args.uncertainty
 
         self.output_size = args.num_tasks
         if self.multiclass:
@@ -120,7 +119,7 @@ class MoleculeModel(nn.Module):
         if self.featurizer:
             return self.featurize(*input)
 
-        if self.UQ and not self.training:
+        if not self.classification and self.uncertainty:
             variance = self.get_var(*input)
 
         output = self.ffn(self.encoder(*input))
@@ -133,7 +132,7 @@ class MoleculeModel(nn.Module):
             if not self.training:
                 output = self.multiclass_softmax(output)  # to get probabilities during evaluation, but not during training as we're using CrossEntropyLoss
 
-        if self.UQ and not self.training:
+        if not self.classification and self.uncertainty:
             return output, variance
         else:
             return output

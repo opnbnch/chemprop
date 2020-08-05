@@ -359,9 +359,9 @@ def get_avg_UQ(var_array, avg_preds, all_preds, return_both=False):
     epistemic = np.nanmean(all_preds, 1)
 
     if return_both:
-        return aleatoric, epistemic
+        return aleatoric.tolist(), epistemic.tolist()
     else:
-        return aleatoric + epistemic
+        return (aleatoric + epistemic).tolist()
 
 
 def save_smiles_splits(train_data: MoleculeDataset,
