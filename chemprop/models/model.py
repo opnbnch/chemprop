@@ -86,11 +86,17 @@ class MoleculeModel(nn.Module):
             ffn.extend([
                 activation,
                 dropout,
-                nn.Linear(args.ffn_hidden_size, self.output_size),
             ])
+            last_linear_dim = args.ffn_hidden_size
 
         # Create FFN model
-        self.ffn = nn.Sequential(*ffn)
+        self._ffn = nn.Sequential(*ffn)
+
+        if self.uncertainty:
+            self.output_layer = nn.Linear(last_linear_dim, self.output_size)
+            self.logvar_layer = nn.Linear(last_linear_dim, self.output_size)
+        else:
+            self.output_layer = nn.Linear(last_linear_dim, self.output_size)
 
     def featurize(self, *input):
         """
@@ -116,13 +122,16 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel. Either property predictions
                  or molecule features if self.featurizer is True.
         """
-        if self.featurizer:
-            return self.featurize(*input)
+        _output = self._ffn(self.encoder(*input))
 
         if self.uncertainty:
-            variance, mean = self.get_estimates(*input)
+            output = self.output_layer(_output)
+            logvar = self.logvar_layer(_output)
 
-        output = self.ffn(self.encoder(*input))
+            # Gaussian uncertainty only for regression, directly returning in this case
+            return output, logvar
+        else:
+            output = self.output_layer(_output)
 
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
