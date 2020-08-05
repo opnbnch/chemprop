@@ -3,7 +3,7 @@ import torch.nn as nn
 from .mpn import MPN
 from chemprop.args import TrainArgs
 from chemprop.nn_utils import get_activation_function, initialize_weights
-from torch import var
+from torch import var, mean
 
 
 class MoleculeModel(nn.Module):
@@ -100,13 +100,13 @@ class MoleculeModel(nn.Module):
         """
         return self.ffn[:-1](self.encoder(*input))
 
-    def get_var(self, *input):
+    def get_estimates(self, *input):
         """
-        Computes the variance of the final layer before activation
+        Computes the variance and mean of the final layer before activation
         :param input: Input
         """
         final = self.ffn[:-1](self.encoder(*input))
-        return var(final, dim=1)
+        return var(final, dim=1), mean(final, dim=1)
 
     def forward(self, *input):
         """
@@ -119,8 +119,8 @@ class MoleculeModel(nn.Module):
         if self.featurizer:
             return self.featurize(*input)
 
-        if not self.classification and self.uncertainty:
-            variance = self.get_var(*input)
+        if self.uncertainty:
+            variance, mean = self.get_estimates(*input)
 
         output = self.ffn(self.encoder(*input))
 
@@ -132,7 +132,7 @@ class MoleculeModel(nn.Module):
             if not self.training:
                 output = self.multiclass_softmax(output)  # to get probabilities during evaluation, but not during training as we're using CrossEntropyLoss
 
-        if not self.classification and self.uncertainty:
-            return output, variance
+        if self.uncertainty:
+            return output, variance, mean
         else:
             return output

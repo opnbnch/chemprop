@@ -164,8 +164,6 @@ def load_task_names(path: str) -> List[str]:
     return load_args(path).task_names
 
 
-# TODO: Ensure this works with torch arrays and get log_var.
-# TODO: Incoroporate this into loss calculations in train
 def heteroscedastic_loss(preds, targets):
     """
     Compute the heteroscedastic loss for regression.
@@ -174,9 +172,10 @@ def heteroscedastic_loss(preds, targets):
     :param mean: A list of logvars (log of predicted variances).
     :return: Computed loss.
     """
-    mean, log_var = preds
-    precision = torch.exp(-log_var)
-    loss = precision * (targets - mean)**2 + log_var
+
+    mean, var = preds
+    log_var = 0.5 * torch.log(var)
+    loss = 0.5 * (1/var) * (targets - mean)**2 + log_var
     return loss
 
 
