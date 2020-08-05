@@ -1,4 +1,5 @@
 import numpy as np
+import tqdm
 
 from .predict import predict
 
@@ -19,11 +20,11 @@ class Dropout_VI:
         self.num_preds = args.num_preds
 
     def UQ_predict(self, model, sum_batch, sum_var, N):
-        for i in range(self.num_preds):
+        for i in tqdm.tqdm(range(self.num_preds)):
             batch_preds, var_preds = predict(
                                         model=model,
                                         data_loader=self.data_loader,
-                                        disable_progress_bar=False,
+                                        disable_progress_bar=True,
                                         scaler=self.scaler
                                         )
             batch_preds = [item for sublist in batch_preds for item in sublist]
