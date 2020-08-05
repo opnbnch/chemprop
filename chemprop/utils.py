@@ -174,8 +174,7 @@ def heteroscedastic_loss(preds, targets):
     :param mean: A list of logvars (log of predicted variances).
     :return: Computed loss.
     """
-    mean = preds[0]
-    log_var = preds[1]
+    mean, log_var = preds
     precision = torch.exp(-log_var)
     loss = precision * (targets - mean)**2 + log_var
     return loss
