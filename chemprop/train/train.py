@@ -71,6 +71,10 @@ def train(model: nn.Module,
 
         loss = loss.sum() / mask.sum()
 
+        if args.uncertainty == 'Dropout_VI':
+            reg_loss = args.reg_acc.get_sum()
+            loss += reg_loss
+
         loss_sum += loss.item()
         iter_count += len(batch)
 

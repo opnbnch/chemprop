@@ -4,11 +4,11 @@ import numpy as np
 
 # Partially based on https://github.com/yaringal/ConcreteDropout
 
+
 class ConcreteDropout(nn.Module):
     def __init__(self, layer, reg_acc, weight_regularizer=1e-6,
                  dropout_regularizer=1e-5, init_min=0.1, init_max=0.1, depth=1):
         super(ConcreteDropout, self).__init__()
-
 
         self.weight_regularizer = weight_regularizer
         self.dropout_regularizer = dropout_regularizer
@@ -21,7 +21,6 @@ class ConcreteDropout(nn.Module):
         init_max = np.log(init_max) - np.log(1. - init_max)
 
         self.p_logit = nn.Parameter(torch.empty(1).uniform_(init_min, init_max))
-
 
     def forward(self, x):
         p = torch.sigmoid(self.p_logit)

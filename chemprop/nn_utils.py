@@ -51,6 +51,20 @@ def index_select_ND(source: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
     return target
 
 
+def get_cc_dropout_hyper(num_train: int, regularization_scale: int):
+    """
+    Compute the hyperparameters for Concrete Dropout
+
+    :param num_train: Training size.
+    :param regularization_scale: Regularization scale.
+    :return: A tuple: (weight_regularizer, dropout_regularizer)
+
+    """
+    wd = regularization_scale ** 2 / num_train
+    dd = 2. / num_train
+    return wd, dd
+
+
 def get_activation_function(activation: str) -> nn.Module:
     """
     Gets an activation function module given the name of the activation.

@@ -2,7 +2,8 @@ import torch.nn as nn
 
 from .mpn import MPN
 from chemprop.args import TrainArgs
-from chemprop.nn_utils import get_activation_function, initialize_weights
+from chemprop.nn_utils import get_activation_function, initialize_weights, get_cc_dropout_hyper
+from chemprop.models.concrete_dropout import ConcreteDropout, RegularizationAccumulator
 from torch import var, mean
 
 
@@ -36,6 +37,11 @@ class MoleculeModel(nn.Module):
 
         self.create_encoder(args)
         self.create_ffn(args)
+        self.dropout_vi = args.uncertainty == 'Dropout_VI'
+
+        if self.dropout_vi:
+            args.reg_acc = RegularizationAccumulator()
+            args.reg_acc.initialize(cuda=args.cuda)
 
         initialize_weights(self)
 
@@ -66,12 +72,18 @@ class MoleculeModel(nn.Module):
         dropout = nn.Dropout(args.dropout)
         activation = get_activation_function(args.activation)
 
+        wd, dd = get_cc_dropout_hyper(args.train_data_size, args.regularization_scale)
+
         # Create FFN layers
         if args.ffn_num_layers == 1:
             ffn = [
                 dropout,
-                nn.Linear(first_linear_dim, self.output_size)
+                ConcreteDropout(layer=nn.Linear(first_linear_dim, args.ffn_hidden_size),
+                                reg_acc=args.reg_acc, weight_regularizer=wd,
+                                dropout_regularizer=dd) if self.dropout_vi else
+                nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size)
             ]
+            last_linear_dim = first_linear_dim
         else:
             ffn = [
                 dropout,
@@ -81,16 +93,21 @@ class MoleculeModel(nn.Module):
                 ffn.extend([
                     activation,
                     dropout,
-                    nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size),
+                    ConcreteDropout(layer=nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size),
+                                    reg_acc=args.reg_acc, weight_regularizer=wd,
+                                    dropout_regularizer=dd) if self.mc_dropout else
+                    nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size)
                 ])
             ffn.extend([
                 activation,
                 dropout,
-                nn.Linear(args.ffn_hidden_size, self.output_size),
+
             ])
+            last_linear_dim = args.ffn_hidden_size
 
         # Create FFN model
         self.ffn = nn.Sequential(*ffn)
+        self.final_layer = nn.Linear(last_linear_dim, self.output_size)
 
     def featurize(self, *input):
         """
@@ -100,13 +117,13 @@ class MoleculeModel(nn.Module):
         """
         return self.ffn[:-1](self.encoder(*input))
 
-    def get_estimates(self, *input):
+    def get_estimates(self, fork):
         """
         Computes the variance and mean of the final layer before activation
         :param input: Input
         """
-        final = self.ffn[:-1](self.encoder(*input))
-        return var(final, dim=1), mean(final, dim=1)
+
+        return var(fork, dim=1), mean(fork, dim=1)
 
     def forward(self, *input):
         """
@@ -116,13 +133,15 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel. Either property predictions
                  or molecule features if self.featurizer is True.
         """
+        _output = self.ffn(self.encoder(*input))
+
         if self.featurizer:
             return self.featurize(*input)
 
         if self.uncertainty:
-            variance, mean = self.get_estimates(*input)
+            variance, mean = self.get_estimates(_output)
 
-        output = self.ffn(self.encoder(*input))
+        output = self.final_layer(_output)
 
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
