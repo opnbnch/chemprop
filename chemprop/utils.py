@@ -164,18 +164,17 @@ def load_task_names(path: str) -> List[str]:
     return load_args(path).task_names
 
 
-def heteroscedastic_loss(preds, targets):
+def heteroscedastic_loss(true, mean, log_var):
     """
     Compute the heteroscedastic loss for regression.
+
     :param true: A list of true values.
     :param mean: A list of means (output predictions).
     :param mean: A list of logvars (log of predicted variances).
     :return: Computed loss.
     """
-
-    mean, var = preds
-    log_var = 0.5 * torch.log(var)
-    loss = 0.5 * (1/var) * (targets - mean)**2 + log_var
+    precision = torch.exp(-log_var)
+    loss = precision * (true - mean)**2 + log_var
     return loss
 
 

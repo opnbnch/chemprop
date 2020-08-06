@@ -51,7 +51,7 @@ def train(model: nn.Module,
         # Run model
         model.zero_grad()
         if args.uncertainty and args.dataset_type == 'regression':
-            preds, variance, means = model(mol_batch, features_batch)
+            preds, log_var = model(mol_batch, features_batch)
         else:
             preds = model(mol_batch, features_batch)
 
@@ -64,8 +64,8 @@ def train(model: nn.Module,
             targets = targets.long()
             loss = torch.cat([loss_func(preds[:, target_index, :], targets[:, target_index]).unsqueeze(1) for target_index in range(preds.size(1))], dim=1) * class_weights * mask
         else:
-            if args.uncertainty == 'Dropout_VI':
-                loss = loss_func((means, variance), targets) * class_weights * mask
+            if args.uncertainty:
+                loss = loss_func(targets, preds, log_var) * class_weights * mask
             else:
                 loss = loss_func(preds, targets) * class_weights * mask
 

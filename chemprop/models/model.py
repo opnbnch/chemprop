@@ -107,7 +107,11 @@ class MoleculeModel(nn.Module):
 
         # Create FFN model
         self.ffn = nn.Sequential(*ffn)
-        self.final_layer = nn.Linear(last_linear_dim, self.output_size)
+
+        if self.uncertainty:
+            self.logvar_layer = nn.Linear(last_linear_dim, self.output_size)
+
+        self.output_layer = nn.Linear(last_linear_dim, self.output_size)
 
     def featurize(self, *input):
         """
@@ -139,9 +143,12 @@ class MoleculeModel(nn.Module):
             return self.featurize(*input)
 
         if self.uncertainty:
-            variance, mean = self.get_estimates(_output)
+            output = self.output_layer(_output)
+            logvar = self.logvar_layer(_output)
 
-        output = self.final_layer(_output)
+            return output, logvar
+        else:
+            output = self.output_layer(_output)
 
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
@@ -150,8 +157,5 @@ class MoleculeModel(nn.Module):
             output = output.reshape((output.size(0), -1, self.num_classes))  # batch size x num targets x num classes per target
             if not self.training:
                 output = self.multiclass_softmax(output)  # to get probabilities during evaluation, but not during training as we're using CrossEntropyLoss
-
-        if self.uncertainty:
-            return output, variance, mean
-        else:
-            return output
+ 
+        return output
