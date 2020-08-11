@@ -144,7 +144,6 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         else:
             datapoint.row[task_names[0]] = preds
 
-
     # Save
     with open(args.preds_path, 'w') as f:
         writer = csv.DictWriter(f, fieldnames=full_data[0].row.keys())

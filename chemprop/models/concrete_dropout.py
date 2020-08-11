@@ -27,12 +27,13 @@ class ConcreteDropout(nn.Module):
 
         out = self.layer(self._concrete_dropout(x, p))
 
+        """
         if self.training:
             sum_of_square = 0
             for param in self.layer.parameters():
                 sum_of_square += torch.sum(torch.pow(param, 2))
 
-            #weights_regularizer = self.weight_regularizer * sum_of_square / (1 - p)
+            # weights_regularizer = self.weight_regularizer * sum_of_square / (1 - p)
             weights_regularizer = self.weight_regularizer * sum_of_square * (1 - p)
 
             dropout_regularizer = p * torch.log(p)
@@ -44,6 +45,7 @@ class ConcreteDropout(nn.Module):
             regularization = weights_regularizer + dropout_regularizer
 
             self.reg_acc.add_loss(regularization)
+        """
 
         return out
 

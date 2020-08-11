@@ -7,7 +7,8 @@ import torch.nn as nn
 
 from chemprop.args import TrainArgs
 from chemprop.features import BatchMolGraph, get_atom_fdim, get_bond_fdim, mol2graph
-from chemprop.nn_utils import index_select_ND, get_activation_function
+from chemprop.nn_utils import index_select_ND, get_activation_function, get_cc_dropout_hyper
+from chemprop.models.concrete_dropout import ConcreteDropout
 
 
 class MPNEncoder(nn.Module):
@@ -48,8 +49,16 @@ class MPNEncoder(nn.Module):
         # Cached zeros
         self.cached_zero_vector = nn.Parameter(torch.zeros(self.hidden_size), requires_grad=False)
 
+         # Concrete Dropout for Bayesian NN
+        wd, dd = get_cc_dropout_hyper(args.train_data_size, args.regularization_scale)
+
         # Input
         input_dim = self.atom_fdim if self.atom_messages else self.bond_fdim
+
+        if args.uncertainty == 'Dropout_VI':
+            self.W_i = ConcreteDropout(layer=nn.Linear(input_dim, self.hidden_size, bias=self.bias), reg_acc=args.reg_acc, weight_regularizer=wd, dropout_regularizer=dd)
+        else:
+            self.W_i = nn.Linear(input_dim, self.hidden_size, bias=self.bias)
         self.W_i = nn.Linear(input_dim, self.hidden_size, bias=self.bias)
 
         if self.atom_messages:
@@ -57,10 +66,12 @@ class MPNEncoder(nn.Module):
         else:
             w_h_input_size = self.hidden_size
 
-        # Shared weight matrix across depths (default)
-        self.W_h = nn.Linear(w_h_input_size, self.hidden_size, bias=self.bias)
-
-        self.W_o = nn.Linear(self.atom_fdim + self.hidden_size, self.hidden_size)
+        if args.uncertainty == 'Dropout_VI':
+            self.W_h = ConcreteDropout(layer=nn.Linear(w_h_input_size, self.hidden_size, bias=self.bias), reg_acc=args.reg_acc, weight_regularizer=wd, dropout_regularizer=dd, depth=self.depth - 1)
+            self.W_o = ConcreteDropout(layer=nn.Linear(self.atom_fdim + self.hidden_size, self.hidden_size), reg_acc=args.reg_acc, weight_regularizer=wd, dropout_regularizer=dd)
+        else:
+            self.W_h = nn.Linear(w_h_input_size, self.hidden_size, bias=self.bias)
+            self.W_o = nn.Linear(self.atom_fdim + self.hidden_size, self.hidden_size)
 
     def forward(self,
                 mol_graph: BatchMolGraph,
