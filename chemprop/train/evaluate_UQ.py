@@ -36,6 +36,7 @@ class Dropout_VI(Uncertainty_estimator):
                                         disable_progress_bar=True,
                                         scaler=self.scaler
                                         )
+            # Ensure they are in proper list form
             batch_preds = [item for sublist in batch_preds for item in sublist]
             var_preds = [item for sublist in var_preds for item in sublist]
             sum_batch[:, i + N] = batch_preds
