@@ -164,6 +164,20 @@ def load_task_names(path: str) -> List[str]:
     return load_args(path).task_names
 
 
+def heteroscedastic_loss(true, mean, log_var):
+    """
+    Compute the heteroscedastic loss for regression.
+
+    :param true: A list of true values.
+    :param mean: A list of means (output predictions).
+    :param mean: A list of logvars (log of predicted variances).
+    :return: Computed loss.
+    """
+    precision = torch.exp(-log_var)
+    loss = precision * (true - mean)**2 + log_var
+    return loss
+
+
 def get_loss_func(args: TrainArgs) -> nn.Module:
     """
     Gets the loss function corresponding to a given dataset type.
@@ -175,8 +189,11 @@ def get_loss_func(args: TrainArgs) -> nn.Module:
         return nn.BCEWithLogitsLoss(reduction='none')
 
     if args.dataset_type == 'regression':
-        return nn.MSELoss(reduction='none')
-    
+        if args.uncertainty == 'Dropout_VI':
+            return heteroscedastic_loss
+        else:
+            return nn.MSELoss(reduction='none')
+
     if args.dataset_type == 'multiclass':
         return nn.CrossEntropyLoss(reduction='none')
 
@@ -342,7 +359,7 @@ def create_logger(name: str, save_dir: str = None, quiet: bool = False) -> loggi
 
 def get_avg_UQ(var_array, avg_preds, all_preds, return_both=False):
     """
-    Method for calcualting uncertainty. Total uncertaintiy is the
+    Method for calcualting uncertainty. Total uncertainty is the
     sum of aleatoric and epistemic uncertainty. This is variational iference
     adopted from 'Zhang and Lee' and is dependent upon using dropout in training
     and inference.

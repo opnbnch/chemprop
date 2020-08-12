@@ -37,7 +37,8 @@ def predict(model: nn.Module,
         # Make predictions
         with torch.no_grad():
             if UQ and not training:
-                batch_preds, var_preds = model(mol_batch, features_batch)
+                batch_preds, logvar_preds = model(mol_batch, features_batch)
+                var_preds = torch.exp(logvar_preds)
                 var_preds = var_preds.data.cpu().numpy()
                 var_preds = var_preds.tolist()
                 total_var_preds.extend(var_preds)

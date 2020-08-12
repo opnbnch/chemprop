@@ -61,7 +61,6 @@ class CommonArgs(Tap):
     max_data_size: int = None  # Maximum number of data points to load
     num_workers: int = 8   # Number of workers for the parallel data loading (0 means sequential)
     batch_size: int = 50  # Batch size
-    num_preds: int = 50  # Number of preds to avg for Dropout VI (only used for that)
 
     def __init__(self, *args, **kwargs) -> None:
         super(CommonArgs, self).__init__(*args, **kwargs)
@@ -160,6 +159,7 @@ class TrainArgs(CommonArgs):
     separate_test_features_path: List[str] = None  # Path to file with features for separate test set
     config_path: str = None  # Path to a .json file containing arguments. Any arguments present in the config file will override arguments specified via the command line or by the defaults.
     ensemble_size: int = 1  # Number of models in ensemble
+    regularization_scale: float = 1e-4 # Concrete dropout regularization scale
 
     # Training arguments
     epochs: int = 30  # Number of epochs to run
@@ -262,6 +262,10 @@ class TrainArgs(CommonArgs):
                 (self.dataset_type == 'multiclass' and self.metric in ['cross_entropy', 'accuracy'])):
             raise ValueError(f'Metric "{self.metric}" invalid for dataset type "{self.dataset_type}".')
 
+        # Ensure UQ is only for regression
+        if self.dataset_type != 'regression' and self.uncertainty is not None:
+            raise ValueError('Currently we cannot compute uncertainty for classification datasets :(')
+
         # Validate class balance
         if self.class_balance and self.dataset_type != 'classification':
             raise ValueError('Class balance can only be applied if the dataset type is classification.')
@@ -304,6 +308,7 @@ class PredictArgs(CommonArgs):
     """PredictArgs includes CommonArgs along with additional arguments used for predicting with a chemprop model."""
     test_path: str  # Path to CSV file containing testing data for which predictions will be made
     preds_path: str  # Path to CSV file where predictions will be saved
+    num_preds: int = 50  # Number of preds to avg for Dropout VI (only used for that)
     split_UQ: bool = False  # Output aleatoric and epistemic uncertainty separately
 
     @property

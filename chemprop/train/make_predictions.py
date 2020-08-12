@@ -110,8 +110,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
     else:
         avg_preds, avg_UQ = uncertainty_estimator.calculate_UQ(sum_batch, sum_var)
         if type(avg_UQ) is tuple:
-            aleatoric = avg_UQ[0]
-            epistemic = avg_UQ[1]
+            aleatoric, epistemic = avg_UQ
 
     # Save predictions
     print(f'Saving predictions to {args.preds_path}')
@@ -144,7 +143,6 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
                 datapoint.row[pred_name] = pred
         else:
             datapoint.row[task_names[0]] = preds
-
 
     # Save
     with open(args.preds_path, 'w') as f:
