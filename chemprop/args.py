@@ -61,6 +61,8 @@ class CommonArgs(Tap):
     max_data_size: int = None  # Maximum number of data points to load
     num_workers: int = 8   # Number of workers for the parallel data loading (0 means sequential)
     batch_size: int = 50  # Batch size
+    split_UQ: bool = False  # Output aleatoric and epistemic uncertainty separately
+    num_preds: int = 50  # Number of preds to avg for Dropout VI (only used for that)
 
     def __init__(self, *args, **kwargs) -> None:
         super(CommonArgs, self).__init__(*args, **kwargs)
@@ -266,6 +268,11 @@ class TrainArgs(CommonArgs):
         if self.dataset_type != 'regression' and self.uncertainty is not None:
             raise ValueError('Currently we cannot compute uncertainty for classification datasets :(')
 
+        # Change our default dropout for dropout_VI to be 0.1
+        if self.uncertainty == 'Dropout_VI' and self.dropout == 0.0:
+            print('DROPOUT NOT SPECIFIED. Setting dropout to 0.1')
+            self.dropout = 0.1
+
         # Validate class balance
         if self.class_balance and self.dataset_type != 'classification':
             raise ValueError('Class balance can only be applied if the dataset type is classification.')
@@ -308,8 +315,6 @@ class PredictArgs(CommonArgs):
     """PredictArgs includes CommonArgs along with additional arguments used for predicting with a chemprop model."""
     test_path: str  # Path to CSV file containing testing data for which predictions will be made
     preds_path: str  # Path to CSV file where predictions will be saved
-    num_preds: int = 50  # Number of preds to avg for Dropout VI (only used for that)
-    split_UQ: bool = False  # Output aleatoric and epistemic uncertainty separately
 
     @property
     def ensemble_size(self) -> int:
