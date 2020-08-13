@@ -60,6 +60,36 @@ class Ensemble_estimator(Uncertainty_estimator):
     def __init__(self, args, scaler):
         super().__init__(args, scaler)
 
+    def UQ_predict(self, model, sum_batch, sum_var, data_loader, N=0):
+        batch_preds, var_preds = predict(
+                            model=model,
+                            data_loader=data_loader,
+                            disable_progress_bar=True,
+                            scaler=self.scaler
+                            )
+
+        # Ensure they are in proper list form
+        batch_preds = [item for sublist in batch_preds for item in sublist]
+        var_preds = [item for sublist in var_preds for item in sublist]
+        sum_batch[:, N] = batch_preds
+        sum_var[:, N] = var_preds
+
+        return sum_batch, sum_var
+
+    def calculate_UQ(self, sum_batch, sum_var):
+        breakpoint()
+        avg_preds = np.nanmean(sum_batch, 1).tolist()
+
+        aleatoric = np.nanmean(sum_var, 1).tolist()
+        epistemic = np.var(sum_batch, 1).tolist()
+
+        total_unc = aleatoric + epistemic
+
+        if self.split_UQ:
+            return avg_preds, (aleatoric, epistemic)
+        else:
+            return avg_preds, total_unc
+
 
 def uncertainty_estimator_builder(uncertainty_method):
     """

@@ -189,7 +189,7 @@ def get_loss_func(args: TrainArgs) -> nn.Module:
         return nn.BCEWithLogitsLoss(reduction='none')
 
     if args.dataset_type == 'regression':
-        if args.uncertainty == 'Dropout_VI':
+        if args.uncertainty:
             return heteroscedastic_loss
         else:
             return nn.MSELoss(reduction='none')

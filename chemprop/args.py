@@ -273,6 +273,11 @@ class TrainArgs(CommonArgs):
             print('DROPOUT NOT SPECIFIED. Setting dropout to 0.1')
             self.dropout = 0.1
 
+        # Change our default ensemble_size for ensembles to be 5
+        if self.uncertainty == 'Ensemble' and self.ensemble_size == 1:
+            print('ENSEMBLE SIZE NOT SPECIFIED. Setting ensemble_size to 5')
+            self.ensemble_size = 5
+
         # Validate class balance
         if self.class_balance and self.dataset_type != 'classification':
             raise ValueError('Class balance can only be applied if the dataset type is classification.')
