@@ -266,6 +266,10 @@ class TrainArgs(CommonArgs):
         if self.dataset_type != 'regression' and self.uncertainty is not None:
             raise ValueError('Currently we cannot compute uncertainty for classification datasets :(')
 
+        # Change our default dropout for dropout_VI to be 0.1
+        if self.uncertainty == 'Dropout_VI' and self.dropout == 0.0:
+            self.dropout = 0.1
+
         # Validate class balance
         if self.class_balance and self.dataset_type != 'classification':
             raise ValueError('Class balance can only be applied if the dataset type is classification.')

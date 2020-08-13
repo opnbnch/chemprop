@@ -87,6 +87,7 @@ def evaluate(model: nn.Module,
     :param logger: Logger.
     :return: A list with the score for each task based on `metric_func`.
     """
+    # TODO: Change to be based on UQ method
     preds = predict(
         model=model,
         data_loader=data_loader,
