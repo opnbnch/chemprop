@@ -21,7 +21,7 @@ from chemprop.models import MoleculeModel
 from chemprop.nn_utils import param_count
 from chemprop.utils import build_optimizer, build_lr_scheduler, get_loss_func, get_metric_func, load_checkpoint,\
     makedirs, save_checkpoint, save_smiles_splits
-from chemprop.uncertainty_estimator import uncertainty_estimator_builder
+from .evaluate_UQ import uncertainty_estimator_builder
 
 
 def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
@@ -99,7 +99,9 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         features_scaler = None
 
     args.train_data_size = len(train_data)
-    
+    args.val_data_size = len(val_data)
+    args.test_data_size = len(test_data)
+
     debug(f'Total size = {len(data):,} | '
           f'train size = {len(train_data):,} | val size = {len(val_data):,} | test size = {len(test_data):,}')
 
@@ -157,7 +159,7 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
 
     # TODO: Put data loader in a function instead of in handle
     if args.uncertainty:
-        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, test_data_loader, scaler)
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, scaler)
 
     # Train ensemble of models
     for model_idx in range(args.ensemble_size):
@@ -213,10 +215,13 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
                 scheduler.step()
             val_scores = evaluate(
                 model=model,
+                args=args,
                 data_loader=val_data_loader,
                 num_tasks=args.num_tasks,
                 metric_func=metric_func,
                 dataset_type=args.dataset_type,
+                unc_estimator=uncertainty_estimator,
+                data_length=args.val_data_size,
                 scaler=scaler,
                 logger=logger
             )
@@ -255,6 +260,7 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
             sum_batch, sum_var = uncertainty_estimator.UQ_predict(model, sum_batch, sum_var, test_data_loader)
 
             test_preds, avg_UQ = uncertainty_estimator.calculate_UQ(sum_batch, sum_var)
+            test_preds = [[x] for x in test_preds]
 
         test_scores = evaluate_predictions(
             preds=test_preds,
