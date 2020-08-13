@@ -2,8 +2,7 @@ import torch.nn as nn
 
 from .mpn import MPN
 from chemprop.args import TrainArgs
-from chemprop.nn_utils import get_activation_function, initialize_weights, get_cc_dropout_hyper
-from chemprop.models.concrete_dropout import ConcreteDropout, RegularizationAccumulator
+from chemprop.nn_utils import get_activation_function, initialize_weights
 from torch import var, mean
 
 

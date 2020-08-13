@@ -75,8 +75,6 @@ def evaluate(model: nn.Module,
              num_tasks: int,
              metric_func: Callable,
              dataset_type: str,
-             unc_estimator=None,
-             data_length=None,
              scaler: StandardScaler = None,
              logger: logging.Logger = None) -> List[float]:
     """
@@ -91,20 +89,11 @@ def evaluate(model: nn.Module,
     :param logger: Logger.
     :return: A list with the score for each task based on `metric_func`.
     """
-    # TODO: Change to be based on UQ method
-    if not args.uncertainty:
-        preds = predict(
-            model=model,
-            data_loader=data_loader,
-            scaler=scaler
-        )
-    else:
-        sum_batch = np.zeros((data_length, args.num_preds))
-        sum_var = np.zeros((data_length, args.num_preds))
-        sum_batch, sum_var = unc_estimator.UQ_predict(model, sum_batch, sum_var, data_loader)
-
-        preds, avg_UQ = unc_estimator.calculate_UQ(sum_batch, sum_var)
-        preds = [[x] for x in preds]
+    preds = predict(
+        model=model,
+        data_loader=data_loader,
+        scaler=scaler
+    )
 
     targets = data_loader.targets()
 

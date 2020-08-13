@@ -21,7 +21,7 @@ from chemprop.models import MoleculeModel
 from chemprop.nn_utils import param_count
 from chemprop.utils import build_optimizer, build_lr_scheduler, get_loss_func, get_metric_func, load_checkpoint,\
     makedirs, save_checkpoint, save_smiles_splits
-from .evaluate_UQ import uncertainty_estimator_builder
+# from .evaluate_UQ import uncertainty_estimator_builder
 
 
 def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
@@ -157,10 +157,6 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         cache=cache
     )
 
-    # TODO: Put data loader in a function instead of in handle
-    if args.uncertainty:
-        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, scaler)
-
     # Train ensemble of models
     for model_idx in range(args.ensemble_size):
         # Tensorboard writer
@@ -220,8 +216,6 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
                 num_tasks=args.num_tasks,
                 metric_func=metric_func,
                 dataset_type=args.dataset_type,
-                unc_estimator=uncertainty_estimator,
-                data_length=args.val_data_size,
                 scaler=scaler,
                 logger=logger
             )
@@ -247,20 +241,11 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         info(f'Model {model_idx} best validation {args.metric} = {best_score:.6f} on epoch {best_epoch}')
         model = load_checkpoint(os.path.join(save_dir, 'model.pt'), device=args.device, logger=logger)
 
-        # TODO: Change to predict based on UQ method
-        if not args.uncertainty:
-            test_preds = predict(
-                model=model,
-                data_loader=test_data_loader,
-                scaler=scaler
-            )
-        else:
-            sum_batch = np.zeros((len(test_data), args.num_preds))
-            sum_var = np.zeros((len(test_data), args.num_preds))
-            sum_batch, sum_var = uncertainty_estimator.UQ_predict(model, sum_batch, sum_var, test_data_loader)
-
-            test_preds, avg_UQ = uncertainty_estimator.calculate_UQ(sum_batch, sum_var)
-            test_preds = [[x] for x in test_preds]
+        test_preds = predict(
+            model=model,
+            data_loader=test_data_loader,
+            scaler=scaler
+        )
 
         test_scores = evaluate_predictions(
             preds=test_preds,
