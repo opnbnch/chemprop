@@ -268,6 +268,7 @@ class TrainArgs(CommonArgs):
 
         # Change our default dropout for dropout_VI to be 0.1
         if self.uncertainty == 'Dropout_VI' and self.dropout == 0.0:
+            print('DROPOUT NOT SPECIFIED. Setting dropout to 0.1')
             self.dropout = 0.1
 
         # Validate class balance

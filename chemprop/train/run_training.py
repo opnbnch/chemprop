@@ -21,6 +21,7 @@ from chemprop.models import MoleculeModel
 from chemprop.nn_utils import param_count
 from chemprop.utils import build_optimizer, build_lr_scheduler, get_loss_func, get_metric_func, load_checkpoint,\
     makedirs, save_checkpoint, save_smiles_splits
+from chemprop.uncertainty_estimator import uncertainty_estimator_builder
 
 
 def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
@@ -154,6 +155,10 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         cache=cache
     )
 
+    # TODO: Put data loader in a function instead of in handle
+    if args.uncertainty:
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, test_data_loader, scaler)
+
     # Train ensemble of models
     for model_idx in range(args.ensemble_size):
         # Tensorboard writer
@@ -238,11 +243,19 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         model = load_checkpoint(os.path.join(save_dir, 'model.pt'), device=args.device, logger=logger)
 
         # TODO: Change to predict based on UQ method
-        test_preds = predict(
-            model=model,
-            data_loader=test_data_loader,
-            scaler=scaler
-        )
+        if not args.uncertainty:
+            test_preds = predict(
+                model=model,
+                data_loader=test_data_loader,
+                scaler=scaler
+            )
+        else:
+            sum_batch = np.zeros((len(test_data), args.num_preds))
+            sum_var = np.zeros((len(test_data), args.num_preds))
+            sum_batch, sum_var = uncertainty_estimator.UQ_predict(model, sum_batch, sum_var, test_data_loader)
+
+            test_preds, avg_UQ = uncertainty_estimator.calculate_UQ(sum_batch, sum_var)
+
         test_scores = evaluate_predictions(
             preds=test_preds,
             targets=test_targets,

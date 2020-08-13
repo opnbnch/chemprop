@@ -11,10 +11,9 @@ class Uncertainty_estimator:
     General class with methods for UQ.
     """
 
-    def __init__(self, args, data_loader, scaler):
+    def __init__(self, args, scaler):
         self.args = args
         self.scaler = scaler
-        self.data_loader = data_loader
         self.split_UQ = args.split_UQ
 
 
@@ -24,23 +23,25 @@ class Dropout_VI(Uncertainty_estimator):
     by using dropout and averaging over a number of predictions.
     """
 
-    def __init__(self, args, data_loader, scaler):
-        super().__init__(args, data_loader, scaler)
+    def __init__(self, args, scaler):
+        super().__init__(args, scaler)
         self.num_preds = args.num_preds
 
-    def UQ_predict(self, model, sum_batch, sum_var, N):
+    def UQ_predict(self, model, sum_batch, sum_var, data_loader, N=0):
+        offset = N * self.num_preds
+
         for i in tqdm.tqdm(range(self.num_preds)):
             batch_preds, var_preds = predict(
                                         model=model,
-                                        data_loader=self.data_loader,
+                                        data_loader=data_loader,
                                         disable_progress_bar=True,
                                         scaler=self.scaler
                                         )
             # Ensure they are in proper list form
             batch_preds = [item for sublist in batch_preds for item in sublist]
             var_preds = [item for sublist in var_preds for item in sublist]
-            sum_batch[:, i + N] = batch_preds
-            sum_var[:, i + N] = var_preds
+            sum_batch[:, i + offset] = batch_preds
+            sum_var[:, i + offset] = var_preds
         return sum_batch, sum_var
 
     def calculate_UQ(self, sum_batch, sum_var):
@@ -56,8 +57,8 @@ class Ensemble_estimator(Uncertainty_estimator):
     over a number of ensembles of models.
     """
 
-    def __init__(self, args, data_loader, scaler):
-        super().__init__(args, data_loader, scaler)
+    def __init__(self, args, scaler):
+        super().__init__(args, scaler)
 
 
 def uncertainty_estimator_builder(uncertainty_method):

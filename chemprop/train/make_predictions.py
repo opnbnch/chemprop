@@ -86,7 +86,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         num_workers=args.num_workers
     )
     if args.uncertainty:
-        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, test_data_loader, scaler)
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, scaler)
 
     print(f'Predicting with an ensemble of {len(args.checkpoint_paths)} models')
     for N, checkpoint_path in tqdm(enumerate(args.checkpoint_paths), total=len(args.checkpoint_paths)):
@@ -101,7 +101,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             )
             sum_preds += np.array(model_preds)
         else:
-            sum_batch, sum_var = uncertainty_estimator.UQ_predict(model, sum_batch, sum_var, N * args.num_preds)
+            sum_batch, sum_var = uncertainty_estimator.UQ_predict(model, sum_batch, sum_var, test_data_loader, N)
 
     # Ensemble predictions
     if not args.uncertainty:
