@@ -35,17 +35,10 @@ class MoleculeModel(nn.Module):
         if self.multiclass:
             self.multiclass_softmax = nn.Softmax(dim=2)
 
-        self.dropout_vi = args.uncertainty == 'Dropout_VI'
-        if self.dropout_vi:
-            args.reg_acc = RegularizationAccumulator()
-
         self.create_encoder(args)
         self.create_ffn(args)
 
         initialize_weights(self)
-
-        if self.dropout_vi:
-            args.reg_acc.initialize(cuda=args.cuda)
 
     def create_encoder(self, args: TrainArgs):
         """
@@ -74,8 +67,6 @@ class MoleculeModel(nn.Module):
         dropout = nn.Dropout(args.dropout)
         activation = get_activation_function(args.activation)
 
-        wd, dd = get_cc_dropout_hyper(args.train_data_size, args.regularization_scale)
-
         # Create FFN layers
         if args.ffn_num_layers == 1:
             ffn = [
@@ -85,18 +76,12 @@ class MoleculeModel(nn.Module):
         else:
             ffn = [
                 dropout,
-                ConcreteDropout(layer=nn.Linear(first_linear_dim, args.ffn_hidden_size),
-                                reg_acc=args.reg_acc, weight_regularizer=wd,
-                                dropout_regularizer=dd) if self.dropout_vi else
                 nn.Linear(first_linear_dim, args.ffn_hidden_size)
             ]
             for _ in range(args.ffn_num_layers - 2):
                 ffn.extend([
                     activation,
                     dropout,
-                    ConcreteDropout(layer=nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size),
-                                    reg_acc=args.reg_acc, weight_regularizer=wd,
-                                    dropout_regularizer=dd) if self.dropout_vi else
                     nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size)
                 ])
             ffn.extend([
