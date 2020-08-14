@@ -77,7 +77,6 @@ class Ensemble_estimator(Uncertainty_estimator):
         return sum_batch, sum_var
 
     def calculate_UQ(self, sum_batch, sum_var):
-        breakpoint()
         avg_preds = np.nanmean(sum_batch, 1).tolist()
 
         aleatoric = np.nanmean(sum_var, 1).tolist()
