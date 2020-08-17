@@ -161,7 +161,6 @@ class TrainArgs(CommonArgs):
     separate_test_features_path: List[str] = None  # Path to file with features for separate test set
     config_path: str = None  # Path to a .json file containing arguments. Any arguments present in the config file will override arguments specified via the command line or by the defaults.
     ensemble_size: int = 1  # Number of models in ensemble
-    regularization_scale: float = 1e-4 # Concrete dropout regularization scale
 
     # Training arguments
     epochs: int = 30  # Number of epochs to run
