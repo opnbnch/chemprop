@@ -10,7 +10,6 @@ from sklearn.ensemble import RandomForestRegressor
 from typing import Any, Callable, List, Tuple
 from chemprop.data import MoleculeDataset, StandardScaler
 import torch.nn as nn
-from chemprop.features import morgan_binary_features_generator as morgan
 
 
 class Uncertainty_estimator:
@@ -271,65 +270,6 @@ class RandomForestEstimator(ExposureEstimator):
                 test_predictions, self._scale_uncertainty(test_uncertainty))
 
 
-class FPRandomForestEstimator(UncertaintyEstimator):
-    """
-    An FPRandomForestEstimator trains a random forest on the
-    morgan fingerprints of provided training data.
-    Predictions are calculated using the output of the random forest.
-    Reported uncertainty is the variance of trees in the forest.
-    """
-    def compute_uncertainty(self,
-                            val_predictions: np.ndarray,
-                            test_predictions: np.ndarray) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        train_smiles = self.train_data.smiles()
-        val_smiles = self.val_data.smiles()
-        test_smiles = self.test_data.smiles()
-
-        # Train targets are already scaled.
-        scaled_train_targets = np.array(self.train_data.targets())
-
-        train_fps = np.array([morgan(s) for s in train_smiles])
-        val_fps = np.array([morgan(s) for s in val_smiles])
-        test_fps = np.array([morgan(s) for s in test_smiles])
-
-        val_predictions = np.ndarray(
-            shape=(len(self.val_data.smiles()), self.args.num_tasks))
-        val_uncertainty = np.ndarray(
-            shape=(len(self.val_data.smiles()), self.args.num_tasks))
-
-        test_predictions = np.ndarray(
-            shape=(len(self.test_data.smiles()), self.args.num_tasks))
-        test_uncertainty = np.ndarray(
-            shape=(len(self.test_data.smiles()), self.args.num_tasks))
-
-        n_trees = 128
-        for task in range(self.args.num_tasks):
-            forest = RandomForestRegressor(n_estimators=n_trees)
-            forest.fit(train_fps, scaled_train_targets[:, task])
-
-            avg_val_preds = forest.predict(val_fps)
-            val_predictions[:, task] = avg_val_preds
-
-            individual_val_predictions = np.array([estimator.predict(
-                val_fps) for estimator in forest.estimators_])
-            val_uncertainty[:, task] = np.std(individual_val_predictions,
-                                              axis=0)
-
-            avg_test_preds = forest.predict(test_fps)
-            test_predictions[:, task] = avg_test_preds
-
-            individual_test_predictions = np.array([estimator.predict(
-                test_fps) for estimator in forest.estimators_])
-            test_uncertainty[:, task] = np.std(individual_test_predictions,
-                                               axis=0)
-
-        val_predictions = self.scaler.inverse_transform(val_predictions)
-        test_predictions = self.scaler.inverse_transform(test_predictions)
-        return (val_predictions, self._scale_uncertainty(val_uncertainty),
-                test_predictions, self._scale_uncertainty(test_uncertainty))
-
-
 class GaussianProcessEstimator(ExposureEstimator):
     """
     A GaussianProcessEstimator trains a Gaussian process to
@@ -446,6 +386,5 @@ def uncertainty_estimator_builder(uncertainty_method: str):
         'Ensemble': Ensemble_estimator,
         'random_forest': RandomForestEstimator,
         'gaussian': GaussianProcessEstimator,
-        'fp_random_forest': FPRandomForestEstimator,
         'mve': MVEEstimator
     }[uncertainty_method]
