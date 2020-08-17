@@ -151,7 +151,7 @@ class TrainArgs(CommonArgs):
     depth: int = 3  # Number of message passing steps
     dropout: float = 0.0  # Dropout probability
     activation: Literal['ReLU', 'LeakyReLU', 'PReLU', 'tanh', 'SELU', 'ELU'] = 'ReLU'  # Activation function
-    uncertainty: Literal['Dropout_VI', 'Ensemble', 'random_forest', 'gaussian', 'fp_random_forest'] = None  # How to calculate uncertainty
+    uncertainty: Literal['Dropout_VI', 'Ensemble', 'random_forest', 'gaussian', 'fp_random_forest', 'mve'] = None  # How to calculate uncertainty
     atom_messages: bool = False  # Centers messages on atoms instead of on bonds
     undirected: bool = False  # Undirected edges (always sum the two relevant bond vectors)
     ffn_hidden_size: int = None  # Hidden dim for higher-capacity FFN (defaults to hidden_size)

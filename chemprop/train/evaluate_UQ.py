@@ -383,6 +383,58 @@ class GaussianProcessEstimator(ExposureEstimator):
                 test_predictions, self._scale_uncertainty(test_uncertainty))
 
 
+class MVEEstimator(UncertaintyEstimator):
+    """
+    An MVEEstimator alters NN structure to produce twice as many outputs.
+    Half correspond to predicted labels and half correspond to uncertainties.
+    """
+    def __init__(self,
+                 train_data: MoleculeDataset,
+                 val_data: MoleculeDataset,
+                 test_data: MoleculeDataset,
+                 scaler: StandardScaler,
+                 args: Namespace):
+        super().__init__(train_data, val_data, test_data, scaler, args)
+
+        self.sum_val_uncertainty = np.zeros(
+            (len(val_data.smiles()), args.num_tasks))
+
+        self.sum_test_uncertainty = np.zeros(
+            (len(test_data.smiles()), args.num_tasks))
+
+    def process_model(self, model: nn.Module):
+        val_preds, val_uncertainty = predict(
+            model=model,
+            data=self.val_data,
+            batch_size=self.args.batch_size,
+            scaler=self.scaler,
+            uncertainty=True
+        )
+
+        if len(val_preds) != 0:
+            self.sum_val_uncertainty += np.array(val_uncertainty).clip(min=0)
+
+        test_preds, test_uncertainty = predict(
+            model=model,
+            data=self.test_data,
+            batch_size=self.args.batch_size,
+            scaler=self.scaler,
+            uncertainty=True
+        )
+
+        if len(test_preds) != 0:
+            self.sum_test_uncertainty += np.array(test_uncertainty).clip(min=0)
+
+    def compute_uncertainty(self,
+                            val_predictions: np.ndarray,
+                            test_predictions: np.ndarray) \
+            -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        return (val_predictions,
+                np.sqrt(self.sum_val_uncertainty / self.args.ensemble_size),
+                test_predictions,
+                np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size))
+
+
 def uncertainty_estimator_builder(uncertainty_method: str):
     """
     Directory for getting the correct class of uncertainty method
@@ -394,5 +446,6 @@ def uncertainty_estimator_builder(uncertainty_method: str):
         'Ensemble': Ensemble_estimator,
         'random_forest': RandomForestEstimator,
         'gaussian': GaussianProcessEstimator,
-        'fp_random_forest': FPRandomForestEstimator
+        'fp_random_forest': FPRandomForestEstimator,
+        'mve': MVEEstimator
     }[uncertainty_method]
