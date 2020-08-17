@@ -11,7 +11,7 @@ from typing import Any, Callable, List, Tuple
 from chemprop.data import MoleculeDataset, StandardScaler
 import torch.nn as nn
 
-
+# TODO: potentially simply extend array for each checkpoint rather than initalize width
 class Uncertainty_estimator:
     """
     General class with methods for UQ.
@@ -111,11 +111,9 @@ class UncertaintyEstimator:
     values. These are only meaningful relative to one another.
     """
     def __init__(self,
-                 train_data: MoleculeDataset,
-                 val_data: MoleculeDataset,
-                 test_data: MoleculeDataset,
+                 args: Namespace,
                  scaler: StandardScaler,
-                 args: Namespace):
+                 ):
         """
         Constructs an UncertaintyEstimator.
         :param train_data: The data a model was trained on.
@@ -124,22 +122,20 @@ class UncertaintyEstimator:
         :param scaler: A scaler the model uses to transform input data.
         :param args: The command line arguments.
         """
-        self.train_data = train_data
-        self.val_data = val_data
-        self.test_data = test_data
+
         self.scaler = scaler
         self.args = args
+        self.split_UQ = args.split_UQ
 
-    def process_model(self, model: nn.Module):
+    def UQ_predict(self, model: nn.Module, data_loader, N=0):
         """Perform initialization using model and prior data.
         :param model: The model to learn the uncertainty of.
         """
         pass
 
-    def compute_uncertainty(self,
-                            val_predictions: np.ndarray,
-                            test_predictions: np.ndarray) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def calculate_UQ(self,
+                     val_predictions: np.ndarray,
+                     test_predictions: np.ndarray):
         """
         Compute uncertainty on self.val_data and self.test_data predictions.
         :param val_predictions: The predictions made on self.val_data.
@@ -165,12 +161,9 @@ class ExposureEstimator(UncertaintyEstimator):
     The "exposed" final hidden-layer is used to calculate uncertainty.
     """
     def __init__(self,
-                 train_data: MoleculeDataset,
-                 val_data: MoleculeDataset,
-                 test_data: MoleculeDataset,
-                 scaler: StandardScaler,
-                 args: Namespace):
-        super().__init__(train_data, val_data, test_data, scaler, args)
+                 args: Namespace,
+                 scaler: StandardScaler):
+        super().__init__(args, scaler)
 
         self.sum_last_hidden_train = np.zeros(
             (len(self.train_data.smiles()), self.args.last_hidden_size))
@@ -181,7 +174,7 @@ class ExposureEstimator(UncertaintyEstimator):
         self.sum_last_hidden_test = np.zeros(
             (len(self.test_data.smiles()), self.args.last_hidden_size))
 
-    def process_model(self, model: nn.Module):
+    def UQ_predict(self, model: nn.Module, data_loader):
         model.eval()
         model.use_last_hidden = False
 
@@ -223,9 +216,9 @@ class ExposureEstimator(UncertaintyEstimator):
 
 class RandomForestEstimator(ExposureEstimator):
 
-    def compute_uncertainty(self,
-                            val_predictions: np.ndarray,
-                            test_predictions: np.ndarray) \
+    def calculate_UQ(self,
+                     val_predictions: np.ndarray,
+                     test_predictions: np.ndarray) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         A RandomForestEstimator trains a random forest to
@@ -284,10 +277,11 @@ class GaussianProcessEstimator(ExposureEstimator):
     Uncertainty and predictions are calculated using
     the output of the Gaussian process.
     """
-    def compute_uncertainty(self,
-                            val_predictions: np.ndarray,
-                            test_predictions: np.ndarray) \
+    def calculate_UQ(self,
+                     val_predictions: np.ndarray,
+                     test_predictions: np.ndarray) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
         (_,
          avg_last_hidden_val,
          avg_last_hidden_test) = self._compute_hidden_vals()
@@ -336,17 +330,15 @@ class MVEEstimator(UncertaintyEstimator):
     Half correspond to predicted labels and half correspond to uncertainties.
     """
     def __init__(self,
-                 train_data: MoleculeDataset,
-                 val_data: MoleculeDataset,
-                 test_data: MoleculeDataset,
-                 scaler: StandardScaler,
-                 args: Namespace):
-        super().__init__(train_data, val_data, test_data, scaler, args)
+                 args: Namespace,
+                 scaler: StandardScaler):
+
+        super().__init__(args, scaler)
 
         self.sum_test_uncertainty = np.zeros(
             (len(test_data.smiles()), args.num_tasks))
 
-    def process_model(self, model: nn.Module):
+    def UQ_predict(self, model: nn.Module, data_loader):
 
         test_preds, test_uncertainty = predict(
             model=model,
@@ -359,10 +351,10 @@ class MVEEstimator(UncertaintyEstimator):
         if len(test_preds) != 0:
             self.sum_test_uncertainty += np.array(test_uncertainty).clip(min=0)
 
-    def compute_uncertainty(self,
-                            val_predictions: np.ndarray,
-                            test_predictions: np.ndarray) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def calculate_UQ(self,
+                     val_predictions: np.ndarray,
+                     test_predictions: np.ndarray):
+
         return (val_predictions,
                 np.sqrt(self.sum_val_uncertainty / self.args.ensemble_size),
                 test_predictions,
