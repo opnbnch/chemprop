@@ -33,7 +33,12 @@ class Dropout_VI(Uncertainty_estimator):
         super().__init__(args, scaler)
         self.num_preds = args.num_preds
 
-    def UQ_predict(self, model, sum_batch, sum_var, data_loader, N=0):
+    def create_matrix(self, data_len, data_width):
+        data_width = data_width * self.num_preds
+        self.sum_batch = np.zeros((data_len, data_width))
+        self.sum_var = np.zeros((data_len, data_width))
+
+    def UQ_predict(self, model, data_loader, N=0):
         offset = N * self.num_preds
 
         for i in tqdm.tqdm(range(self.num_preds)):
@@ -44,15 +49,15 @@ class Dropout_VI(Uncertainty_estimator):
                                         scaler=self.scaler
                                         )
             # Ensure they are in proper list form
+            # TODO: Allow for multitasking instead
             batch_preds = [item for sublist in batch_preds for item in sublist]
             var_preds = [item for sublist in var_preds for item in sublist]
-            sum_batch[:, i + offset] = batch_preds
-            sum_var[:, i + offset] = var_preds
-        return sum_batch, sum_var
+            self.sum_batch[:, i + offset] = batch_preds
+            self.sum_var[:, i + offset] = var_preds
 
-    def calculate_UQ(self, sum_batch, sum_var):
-        avg_preds = np.nanmean(sum_batch, 1).tolist()
-        avg_UQ = get_avg_UQ(sum_var, avg_preds, sum_batch, return_both=self.split_UQ)
+    def calculate_UQ(self):
+        avg_preds = np.nanmean(self.sum_batch, 1).tolist()
+        avg_UQ = get_avg_UQ(self.sum_var, avg_preds, self.sum_batch, return_both=self.split_UQ)
 
         return avg_preds, avg_UQ
 
@@ -66,7 +71,11 @@ class Ensemble_estimator(Uncertainty_estimator):
     def __init__(self, args, scaler):
         super().__init__(args, scaler)
 
-    def UQ_predict(self, model, sum_batch, sum_var, data_loader, N=0):
+    def create_matrix(self, data_len, data_width):
+        self.sum_batch = np.zeros((data_len, data_width))
+        self.sum_var = np.zeros((data_len, data_width))
+
+    def UQ_predict(self, model, data_loader, N=0):
         batch_preds, var_preds = predict(
                             model=model,
                             data_loader=data_loader,
@@ -77,16 +86,14 @@ class Ensemble_estimator(Uncertainty_estimator):
         # Ensure they are in proper list form
         batch_preds = [item for sublist in batch_preds for item in sublist]
         var_preds = [item for sublist in var_preds for item in sublist]
-        sum_batch[:, N] = batch_preds
-        sum_var[:, N] = var_preds
+        self.sum_batch[:, N] = batch_preds
+        self.sum_var[:, N] = var_preds
 
-        return sum_batch, sum_var
+    def calculate_UQ(self):
+        avg_preds = np.nanmean(self.sum_batch, 1).tolist()
 
-    def calculate_UQ(self, sum_batch, sum_var):
-        avg_preds = np.nanmean(sum_batch, 1).tolist()
-
-        aleatoric = np.nanmean(sum_var, 1).tolist()
-        epistemic = np.var(sum_batch, 1).tolist()
+        aleatoric = np.nanmean(self.sum_var, 1).tolist()
+        epistemic = np.var(self.sum_batch, 1).tolist()
 
         total_unc = aleatoric + epistemic
 
@@ -336,23 +343,10 @@ class MVEEstimator(UncertaintyEstimator):
                  args: Namespace):
         super().__init__(train_data, val_data, test_data, scaler, args)
 
-        self.sum_val_uncertainty = np.zeros(
-            (len(val_data.smiles()), args.num_tasks))
-
         self.sum_test_uncertainty = np.zeros(
             (len(test_data.smiles()), args.num_tasks))
 
     def process_model(self, model: nn.Module):
-        val_preds, val_uncertainty = predict(
-            model=model,
-            data=self.val_data,
-            batch_size=self.args.batch_size,
-            scaler=self.scaler,
-            uncertainty=True
-        )
-
-        if len(val_preds) != 0:
-            self.sum_val_uncertainty += np.array(val_uncertainty).clip(min=0)
 
         test_preds, test_uncertainty = predict(
             model=model,
