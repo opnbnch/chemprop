@@ -11,7 +11,7 @@ from typing import Any, Callable, List, Tuple
 from chemprop.data import MoleculeDataset, StandardScaler
 import torch.nn as nn
 
-# TODO: potentially simply extend array for each checkpoint rather than initalize width
+
 class Uncertainty_estimator:
     """
     General class with methods for UQ.
