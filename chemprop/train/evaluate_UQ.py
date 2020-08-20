@@ -8,99 +8,8 @@ from chemprop.utils import get_avg_UQ
 from argparse import Namespace
 from sklearn.ensemble import RandomForestRegressor
 from typing import Any, Callable, List, Tuple
-from chemprop.data import MoleculeDataset, StandardScaler
+from chemprop.data import MoleculeDataset, MoleculeDataLoader, StandardScaler
 import torch.nn as nn
-
-
-class Uncertainty_estimator:
-    """
-    General class with methods for UQ.
-    """
-
-    def __init__(self, args, scaler):
-        self.args = args
-        self.scaler = scaler
-        self.split_UQ = args.split_UQ
-
-
-class Dropout_VI(Uncertainty_estimator):
-    """
-    Uncertainty method for calculating aleatoric + epistemic UQ
-    by using dropout and averaging over a number of predictions.
-    """
-
-    def __init__(self, args, scaler):
-        super().__init__(args, scaler)
-        self.num_preds = args.num_preds
-
-    def create_matrix(self, data_len, data_width):
-        data_width = data_width * self.num_preds
-        self.sum_batch = np.zeros((data_len, data_width))
-        self.sum_var = np.zeros((data_len, data_width))
-
-    def UQ_predict(self, model, data_loader, N=0):
-        offset = N * self.num_preds
-
-        for i in tqdm.tqdm(range(self.num_preds)):
-            batch_preds, var_preds = predict(
-                                        model=model,
-                                        data_loader=data_loader,
-                                        disable_progress_bar=True,
-                                        scaler=self.scaler
-                                        )
-            # Ensure they are in proper list form
-            # TODO: Allow for multitasking instead
-            batch_preds = [item for sublist in batch_preds for item in sublist]
-            var_preds = [item for sublist in var_preds for item in sublist]
-            self.sum_batch[:, i + offset] = batch_preds
-            self.sum_var[:, i + offset] = var_preds
-
-    def calculate_UQ(self):
-        avg_preds = np.nanmean(self.sum_batch, 1).tolist()
-        avg_UQ = get_avg_UQ(self.sum_var, avg_preds, self.sum_batch, return_both=self.split_UQ)
-
-        return avg_preds, avg_UQ
-
-
-class Ensemble_estimator(Uncertainty_estimator):
-    """
-    Uncertainty method for calculating UQ by averaging
-    over a number of ensembles of models.
-    """
-
-    def __init__(self, args, scaler):
-        super().__init__(args, scaler)
-
-    def create_matrix(self, data_len, data_width):
-        self.sum_batch = np.zeros((data_len, data_width))
-        self.sum_var = np.zeros((data_len, data_width))
-
-    def UQ_predict(self, model, data_loader, N=0):
-        batch_preds, var_preds = predict(
-                            model=model,
-                            data_loader=data_loader,
-                            disable_progress_bar=True,
-                            scaler=self.scaler
-                            )
-
-        # Ensure they are in proper list form
-        batch_preds = [item for sublist in batch_preds for item in sublist]
-        var_preds = [item for sublist in var_preds for item in sublist]
-        self.sum_batch[:, N] = batch_preds
-        self.sum_var[:, N] = var_preds
-
-    def calculate_UQ(self):
-        avg_preds = np.nanmean(self.sum_batch, 1).tolist()
-
-        aleatoric = np.nanmean(self.sum_var, 1).tolist()
-        epistemic = np.var(self.sum_batch, 1).tolist()
-
-        total_unc = aleatoric + epistemic
-
-        if self.split_UQ:
-            return avg_preds, (aleatoric, epistemic)
-        else:
-            return avg_preds, total_unc
 
 
 class UncertaintyEstimator:
@@ -112,6 +21,7 @@ class UncertaintyEstimator:
     """
     def __init__(self,
                  args: Namespace,
+                 data,
                  scaler: StandardScaler,
                  ):
         """
@@ -123,13 +33,22 @@ class UncertaintyEstimator:
         :param args: The command line arguments.
         """
 
-        self.scaler = scaler
         self.args = args
+        self.scaler = scaler
+        self.data = data
+        self.data_loader = MoleculeDataLoader(
+                            dataset=data,
+                            batch_size=args.batch_size,
+                            num_workers=args.num_workers
+        )
+        self.data_len = len(data)
+        self.data_width = len(args.checkpoint_paths)
         self.split_UQ = args.split_UQ
 
-    def UQ_predict(self, model: nn.Module, data_loader, N=0):
+    def process_model(self, model: nn.Module, N=0):
         """Perform initialization using model and prior data.
         :param model: The model to learn the uncertainty of.
+        :int N: Enumerate of model we are currently processing.
         """
         pass
 
@@ -154,6 +73,88 @@ class UncertaintyEstimator:
         return self.scaler.stds * uncertainty
 
 
+class Dropout_VI(UncertaintyEstimator):
+    """
+    Uncertainty method for calculating aleatoric + epistemic UQ
+    by using dropout and averaging over a number of predictions.
+    """
+
+    def __init__(self, args, data, scaler):
+        super().__init__(args, data, scaler)
+        self.num_preds = args.num_preds
+        self._create_matrix()
+
+    def _create_matrix(self):
+        self.data_width *= self.num_preds
+        self.sum_batch = np.zeros((self.data_len, self.data_width))
+        self.sum_var = np.zeros((self.data_len, self.data_width))
+
+    def process_model(self, model, N=0):
+        offset = N * self.num_preds
+
+        for i in tqdm.tqdm(range(self.num_preds)):
+            batch_preds, var_preds = predict(
+                                        model=model,
+                                        data_loader=self.data_loader,
+                                        disable_progress_bar=True,
+                                        scaler=self.scaler
+                                        )
+            # Ensure they are in proper list form
+            # TODO: Allow for multitasking instead
+            batch_preds = [item for sublist in batch_preds for item in sublist]
+            var_preds = [item for sublist in var_preds for item in sublist]
+            self.sum_batch[:, i + offset] = batch_preds
+            self.sum_var[:, i + offset] = var_preds
+
+    def calculate_UQ(self):
+        avg_preds = np.nanmean(self.sum_batch, 1).tolist()
+        avg_UQ = get_avg_UQ(self.sum_var, avg_preds, self.sum_batch, return_both=self.split_UQ)
+
+        return avg_preds, avg_UQ
+
+
+class Ensemble_estimator(UncertaintyEstimator):
+    """
+    Uncertainty method for calculating UQ by averaging
+    over a number of ensembles of models.
+    """
+
+    def __init__(self, args, data, scaler):
+        super().__init__(args, data, scaler)
+        self._create_matrix()
+
+    def _create_matrix(self):
+        self.sum_batch = np.zeros((self.data_len, self.data_width))
+        self.sum_var = np.zeros((self.data_len, self.data_width))
+
+    def process_model(self, model, N=0):
+        batch_preds, var_preds = predict(
+                            model=model,
+                            data_loader=self.data_loader,
+                            disable_progress_bar=True,
+                            scaler=self.scaler
+                            )
+
+        # Ensure they are in proper list form
+        batch_preds = [item for sublist in batch_preds for item in sublist]
+        var_preds = [item for sublist in var_preds for item in sublist]
+        self.sum_batch[:, N] = batch_preds
+        self.sum_var[:, N] = var_preds
+
+    def calculate_UQ(self):
+        avg_preds = np.nanmean(self.sum_batch, 1).tolist()
+
+        aleatoric = np.nanmean(self.sum_var, 1).tolist()
+        epistemic = np.var(self.sum_batch, 1).tolist()
+
+        total_unc = aleatoric + epistemic
+
+        if self.split_UQ:
+            return avg_preds, (aleatoric, epistemic)
+        else:
+            return avg_preds, total_unc
+
+
 class ExposureEstimator(UncertaintyEstimator):
     """
     An ExposureEstimator drops the output layer
@@ -162,39 +163,16 @@ class ExposureEstimator(UncertaintyEstimator):
     """
     def __init__(self,
                  args: Namespace,
+                 data,
                  scaler: StandardScaler):
-        super().__init__(args, scaler)
-
-        self.sum_last_hidden_train = np.zeros(
-            (len(self.train_data.smiles()), self.args.last_hidden_size))
-
-        self.sum_last_hidden_val = np.zeros(
-            (len(self.val_data.smiles()), self.args.last_hidden_size))
+        super().__init__(args, data, scaler)
 
         self.sum_last_hidden_test = np.zeros(
-            (len(self.test_data.smiles()), self.args.last_hidden_size))
+            (len(self.data), self.args.last_hidden_size))
 
-    def UQ_predict(self, model: nn.Module, data_loader):
+    def process_model(self, model: nn.Module, data_loader):
         model.eval()
         model.use_last_hidden = False
-
-        last_hidden_train = predict(
-            model=model,
-            data=self.train_data,
-            batch_size=self.args.batch_size,
-            scaler=None
-        )
-
-        self.sum_last_hidden_train += np.array(last_hidden_train)
-
-        last_hidden_val = predict(
-            model=model,
-            data=self.val_data,
-            batch_size=self.args.batch_size,
-            scaler=None
-        )
-
-        self.sum_last_hidden_val += np.array(last_hidden_val)
 
         last_hidden_test = predict(
             model=model,
@@ -229,11 +207,6 @@ class RandomForestEstimator(ExposureEstimator):
         (_,
          avg_last_hidden_val,
          avg_last_hidden_test) = self._compute_hidden_vals()
-
-        val_predictions = np.ndarray(
-            shape=(len(self.val_data.smiles()), self.args.num_tasks))
-        val_uncertainty = np.ndarray(
-            shape=(len(self.val_data.smiles()), self.args.num_tasks))
 
         test_predictions = np.ndarray(
             shape=(len(self.test_data.smiles()), self.args.num_tasks))
@@ -285,11 +258,6 @@ class GaussianProcessEstimator(ExposureEstimator):
         (_,
          avg_last_hidden_val,
          avg_last_hidden_test) = self._compute_hidden_vals()
-
-        val_predictions = np.ndarray(
-            shape=(len(self.val_data.smiles()), self.args.num_tasks))
-        val_uncertainty = np.ndarray(
-            shape=(len(self.val_data.smiles()), self.args.num_tasks))
 
         test_predictions = np.ndarray(
             shape=(len(self.test_data.smiles()), self.args.num_tasks))

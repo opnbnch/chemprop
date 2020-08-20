@@ -67,7 +67,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
 
     # Initialize uncertainty estimator
     if args.uncertainty:
-        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, scaler)
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, test_data, scaler)
 
     # Predict with each model individually and sum predictions
     if not args.uncertainty:
@@ -75,8 +75,6 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             sum_preds = np.zeros((len(test_data), num_tasks, args.multiclass_num_classes))
         else:
             sum_preds = np.zeros((len(test_data), num_tasks))
-    else:
-        uncertainty_estimator.create_matrix(len(test_data), len(args.checkpoint_paths))
 
     # Create data loader
     test_data_loader = MoleculeDataLoader(
@@ -98,7 +96,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             )
             sum_preds += np.array(model_preds)
         else:
-            uncertainty_estimator.UQ_predict(model, test_data_loader, N)
+            uncertainty_estimator.UQ_predict(model, N)
 
     # Ensemble predictions
     if not args.uncertainty:
