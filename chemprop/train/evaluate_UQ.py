@@ -221,14 +221,6 @@ class RandomForestEstimator(ExposureEstimator):
             forest = RandomForestRegressor(n_estimators=n_trees)
             forest.fit(avg_last_hidden_val, transformed_val[:, task])
 
-            avg_val_preds = forest.predict(avg_last_hidden_val)
-            val_predictions[:, task] = avg_val_preds
-
-            individual_val_predictions = np.array([estimator.predict(
-                avg_last_hidden_val) for estimator in forest.estimators_])
-            val_uncertainty[:, task] = np.std(individual_val_predictions,
-                                              axis=0)
-
             avg_test_preds = forest.predict(avg_last_hidden_test)
             test_predictions[:, task] = avg_test_preds
 
@@ -236,11 +228,9 @@ class RandomForestEstimator(ExposureEstimator):
                 avg_last_hidden_test) for estimator in forest.estimators_])
             test_uncertainty[:, task] = np.std(individual_test_predictions,
                                                axis=0)
-
-        val_predictions = self.scaler.inverse_transform(val_predictions)
         test_predictions = self.scaler.inverse_transform(test_predictions)
-        return (val_predictions, self._scale_uncertainty(val_uncertainty),
-                test_predictions, self._scale_uncertainty(test_uncertainty))
+
+        return test_predictions
 
 
 class GaussianProcessEstimator(ExposureEstimator):
