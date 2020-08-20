@@ -100,7 +100,7 @@ class Dropout_VI(UncertaintyEstimator):
                                         scaler=self.scaler
                                         )
             # Ensure they are in proper list form
-            # TODO: Allow for multitasking instead
+            # TODO: Allow for multitasking instead 
             batch_preds = [item for sublist in batch_preds for item in sublist]
             var_preds = [item for sublist in var_preds for item in sublist]
             self.sum_batch[:, i + offset] = batch_preds
