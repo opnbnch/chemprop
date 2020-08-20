@@ -96,7 +96,7 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             )
             sum_preds += np.array(model_preds)
         else:
-            uncertainty_estimator.UQ_predict(model, N)
+            uncertainty_estimator.process_model(model, N)
 
     # Ensemble predictions
     if not args.uncertainty:
