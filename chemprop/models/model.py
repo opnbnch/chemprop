@@ -142,6 +142,7 @@ class MoleculeModel(nn.Module):
         if self.featurizer:
             return self.featurize(*input)
 
+        # TODO: MVE apparently doesnt hold the final layer
         if self.hold_final:
             if self.mve:
                 even_indices = tensor(range(0, list(_output.size())[1], 2))
