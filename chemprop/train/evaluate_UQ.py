@@ -168,11 +168,12 @@ class ExposureEstimator(UncertaintyEstimator):
         super().__init__(args, data, scaler)
 
         self.sum_last_hidden_test = np.zeros(
-            (len(self.data), self.args.last_hidden_size))
+            (len(self.data), self.args.hidden_size))
 
     def process_model(self, model: nn.Module, data_loader):
         model.eval()
         model.use_last_hidden = False
+        self.num_tasks = model.output_size
 
         last_hidden_test = predict(
             model=model,
@@ -202,15 +203,17 @@ class RandomForestEstimator(ExposureEstimator):
         avg_last_hidden_test = self._compute_hidden_vals()
 
         test_predictions = np.ndarray(
-            shape=(len(self.data.smiles()), self.args.num_tasks))
+            shape=(len(self.data.smiles()), self.num_tasks))
         test_uncertainty = np.ndarray(
-            shape=(len(self.data.smiles()), self.args.num_tasks))
+            shape=(len(self.data.smiles()), self.num_tasks))
 
+        # ISSUE: NO TARGETS FOR TEST DATA (CANT TRAIN A FOREST)
         transformed_test = self.scaler.transform(
             np.array(self.data.targets()))
+        breakpoint()
 
         n_trees = 128
-        for task in range(self.args.num_tasks):
+        for task in range(self.num_tasks):
             forest = RandomForestRegressor(n_estimators=n_trees)
             forest.fit(avg_last_hidden_test, transformed_test[:, task])
 
@@ -246,7 +249,7 @@ class GaussianProcessEstimator(ExposureEstimator):
             np.array(self.data.targets()))
 
         for task in range(self.args.num_tasks):
-            kernel = GPy.kern.Linear(input_dim=self.args.last_hidden_size)
+            kernel = GPy.kern.Linear(input_dim=self.args.hidden_size)
             gaussian = GPy.models.SparseGPRegression(
                 avg_last_hidden_test,
                 transformed_test[:, task:task + 1], kernel)

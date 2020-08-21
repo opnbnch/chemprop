@@ -23,6 +23,7 @@ def predict(model: nn.Module,
     """
 
     UQ = model.uncertainty
+    two_vals = UQ == 'Dropout_VI' or UQ == 'Ensemble'
     mve = model.mve
     training = model.training
     if UQ != 'Dropout_VI':
@@ -38,14 +39,13 @@ def predict(model: nn.Module,
         # Make predictions
         with torch.no_grad():
 
-            if UQ and not training:
+            if two_vals and not training:
                 batch_preds, logvar_preds = model(mol_batch, features_batch)
                 var_preds = torch.exp(logvar_preds)
                 var_preds = var_preds.data.cpu().numpy()
                 var_preds = var_preds.tolist()
                 total_var_preds.extend(var_preds)
-            elif UQ:
-                batch_preds, logvar_preds = model(mol_batch, features_batch)
+
             else:
                 batch_preds = model(mol_batch, features_batch)
 
@@ -75,7 +75,7 @@ def predict(model: nn.Module,
         else:
             return p
 
-    if not UQ or training:
+    if not UQ or training or not two_vals:
         return total_batch_preds
     else:
         return total_batch_preds, total_var_preds

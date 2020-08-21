@@ -74,6 +74,7 @@ class MoleculeModel(nn.Module):
         if self.mve:
             self.output_size *= 2
 
+        args.last_hidden_size = self.output_size
         # Create FFN layers
         if args.ffn_num_layers == 1:
             ffn = [
