@@ -279,7 +279,7 @@ class MVEEstimator(UncertaintyEstimator):
         super().__init__(args, scaler)
 
         self.sum_test_uncertainty = np.zeros(
-            (len(self.data.smiles()), args.num_tasks))
+            (len(self.data.smiles()), self.num_tasks))
 
     def process_model(self, model: nn.Module, data_loader):
 
@@ -288,6 +288,7 @@ class MVEEstimator(UncertaintyEstimator):
             data_loader=self.data_loader,
             scaler=self.scaler,
         )
+        # TODO: preds must handle multiple folds + ensembles
         self.preds = test_preds
         if len(test_preds) != 0:
             self.sum_test_uncertainty += np.array(test_uncertainty).clip(min=0)
