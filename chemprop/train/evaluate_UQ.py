@@ -185,11 +185,9 @@ class ExposureEstimator(UncertaintyEstimator):
 
     def _compute_hidden_vals(self):
         ensemble_size = self.args.ensemble_size
-        avg_last_hidden_train = self.sum_last_hidden_train / ensemble_size
-        avg_last_hidden_val = self.sum_last_hidden_val / ensemble_size
         avg_last_hidden_test = self.sum_last_hidden_test / ensemble_size
 
-        return avg_last_hidden_train, avg_last_hidden_val, avg_last_hidden_test
+        return avg_last_hidden_test
 
 
 class RandomForestEstimator(ExposureEstimator):
@@ -204,22 +202,21 @@ class RandomForestEstimator(ExposureEstimator):
         Predictions are calculated using the output of the random forest.
         Reported uncertainty is the variance of trees in the forest.
         """
-        (_,
-         avg_last_hidden_val,
-         avg_last_hidden_test) = self._compute_hidden_vals()
+
+        avg_last_hidden_test = self._compute_hidden_vals()
 
         test_predictions = np.ndarray(
-            shape=(len(self.test_data.smiles()), self.args.num_tasks))
+            shape=(len(self.data.smiles()), self.args.num_tasks))
         test_uncertainty = np.ndarray(
-            shape=(len(self.test_data.smiles()), self.args.num_tasks))
+            shape=(len(self.data.smiles()), self.args.num_tasks))
 
-        transformed_val = self.scaler.transform(
-            np.array(self.val_data.targets()))
+        transformed_test = self.scaler.transform(
+            np.array(self.data.targets()))
 
         n_trees = 128
         for task in range(self.args.num_tasks):
             forest = RandomForestRegressor(n_estimators=n_trees)
-            forest.fit(avg_last_hidden_val, transformed_val[:, task])
+            forest.fit(avg_last_hidden_test, transformed_test[:, task])
 
             avg_test_preds = forest.predict(avg_last_hidden_test)
             test_predictions[:, task] = avg_test_preds
@@ -230,7 +227,7 @@ class RandomForestEstimator(ExposureEstimator):
                                                axis=0)
         test_predictions = self.scaler.inverse_transform(test_predictions)
 
-        return test_predictions
+        return test_uncertainty
 
 
 class GaussianProcessEstimator(ExposureEstimator):
@@ -245,30 +242,22 @@ class GaussianProcessEstimator(ExposureEstimator):
                      test_predictions: np.ndarray) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
-        (_,
-         avg_last_hidden_val,
-         avg_last_hidden_test) = self._compute_hidden_vals()
+         avg_last_hidden_test = self._compute_hidden_vals()
 
         test_predictions = np.ndarray(
             shape=(len(self.test_data.smiles()), self.args.num_tasks))
         test_uncertainty = np.ndarray(
             shape=(len(self.test_data.smiles()), self.args.num_tasks))
 
-        transformed_val = self.scaler.transform(
-            np.array(self.val_data.targets()))
+        transformed_test= self.scaler.transform(
+            np.array(self.data.targets()))
 
         for task in range(self.args.num_tasks):
             kernel = GPy.kern.Linear(input_dim=self.args.last_hidden_size)
             gaussian = GPy.models.SparseGPRegression(
-                avg_last_hidden_val,
-                transformed_val[:, task:task + 1], kernel)
+                avg_last_hidden_test,
+                transformed_test[:, task:task + 1], kernel)
             gaussian.optimize()
-
-            avg_val_preds, avg_val_var = gaussian.predict(
-                avg_last_hidden_val)
-
-            val_predictions[:, task:task + 1] = avg_val_preds
-            val_uncertainty[:, task:task + 1] = np.sqrt(avg_val_var)
 
             avg_test_preds, avg_test_var = gaussian.predict(
                 avg_last_hidden_test)
@@ -276,10 +265,9 @@ class GaussianProcessEstimator(ExposureEstimator):
             test_predictions[:, task:task + 1] = avg_test_preds
             test_uncertainty[:, task:task + 1] = np.sqrt(avg_test_var)
 
-        val_predictions = self.scaler.inverse_transform(val_predictions)
         test_predictions = self.scaler.inverse_transform(test_predictions)
-        return (val_predictions, self._scale_uncertainty(val_uncertainty),
-                test_predictions, self._scale_uncertainty(test_uncertainty))
+
+        return self._scale_uncertainty(test_uncertainty)
 
 
 class MVEEstimator(UncertaintyEstimator):
@@ -289,12 +277,13 @@ class MVEEstimator(UncertaintyEstimator):
     """
     def __init__(self,
                  args: Namespace,
+                 data,
                  scaler: StandardScaler):
 
         super().__init__(args, scaler)
 
         self.sum_test_uncertainty = np.zeros(
-            (len(test_data.smiles()), args.num_tasks))
+            (len(self.data.smiles()), args.num_tasks))
 
     def UQ_predict(self, model: nn.Module, data_loader):
 
@@ -313,10 +302,8 @@ class MVEEstimator(UncertaintyEstimator):
                      val_predictions: np.ndarray,
                      test_predictions: np.ndarray):
 
-        return (val_predictions,
-                np.sqrt(self.sum_val_uncertainty / self.args.ensemble_size),
-                test_predictions,
-                np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size))
+        return test_predictions,
+        np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size)
 
 
 def uncertainty_estimator_builder(uncertainty_method: str):

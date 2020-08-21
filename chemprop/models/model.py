@@ -24,7 +24,10 @@ class MoleculeModel(nn.Module):
         self.featurizer = featurizer
         self.uncertainty = args.uncertainty
         self.mve = args.uncertainty == 'mve'
-        self.hold_final = args.uncertainty == 'Dropout_VI' or args.uncertainty == 'Ensemble' or self.mve
+        self.use_last_hidden = True
+        self.hold_final = args.uncertainty == 'Dropout_VI' or \
+            args.uncertainty == 'Ensemble' or \
+            self.mve or not self.use_last_hidden
 
         self.output_size = args.num_tasks
         if self.multiclass:
@@ -148,11 +151,13 @@ class MoleculeModel(nn.Module):
 
                 output = stack((predicted_means, capped_uncertainties), dim=2).view(_output.size())
                 return output
-            else:
+            elif self.uncertainty == 'Dropout_VI' or self.uncertainty == 'Ensemble':
                 output = self.output_layer(_output)
                 logvar = self.logvar_layer(_output)
 
                 return output, logvar
+            else:
+                return _output
         else:
             output = self.output_layer(_output)
 
