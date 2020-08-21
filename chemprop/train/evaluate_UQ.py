@@ -176,8 +176,7 @@ class ExposureEstimator(UncertaintyEstimator):
 
         last_hidden_test = predict(
             model=model,
-            data=self.test_data,
-            batch_size=self.args.batch_size,
+            data_loader=self.data_loader,
             scaler=None
         )
 
@@ -192,10 +191,7 @@ class ExposureEstimator(UncertaintyEstimator):
 
 class RandomForestEstimator(ExposureEstimator):
 
-    def calculate_UQ(self,
-                     val_predictions: np.ndarray,
-                     test_predictions: np.ndarray) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def calculate_UQ(self):
         """
         A RandomForestEstimator trains a random forest to
         operate on data transformed by the provided model.
@@ -227,7 +223,7 @@ class RandomForestEstimator(ExposureEstimator):
                                                axis=0)
         test_predictions = self.scaler.inverse_transform(test_predictions)
 
-        return test_uncertainty
+        return test_predictions, test_uncertainty
 
 
 class GaussianProcessEstimator(ExposureEstimator):
@@ -237,19 +233,16 @@ class GaussianProcessEstimator(ExposureEstimator):
     Uncertainty and predictions are calculated using
     the output of the Gaussian process.
     """
-    def calculate_UQ(self,
-                     val_predictions: np.ndarray,
-                     test_predictions: np.ndarray) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def calculate_UQ(self):
 
-         avg_last_hidden_test = self._compute_hidden_vals()
+        avg_last_hidden_test = self._compute_hidden_vals()
 
         test_predictions = np.ndarray(
             shape=(len(self.test_data.smiles()), self.args.num_tasks))
         test_uncertainty = np.ndarray(
             shape=(len(self.test_data.smiles()), self.args.num_tasks))
 
-        transformed_test= self.scaler.transform(
+        transformed_test = self.scaler.transform(
             np.array(self.data.targets()))
 
         for task in range(self.args.num_tasks):
@@ -267,7 +260,7 @@ class GaussianProcessEstimator(ExposureEstimator):
 
         test_predictions = self.scaler.inverse_transform(test_predictions)
 
-        return self._scale_uncertainty(test_uncertainty)
+        return test_predictions, self._scale_uncertainty(test_uncertainty)
 
 
 class MVEEstimator(UncertaintyEstimator):
@@ -285,25 +278,20 @@ class MVEEstimator(UncertaintyEstimator):
         self.sum_test_uncertainty = np.zeros(
             (len(self.data.smiles()), args.num_tasks))
 
-    def UQ_predict(self, model: nn.Module, data_loader):
+    def process_model(self, model: nn.Module, data_loader):
 
         test_preds, test_uncertainty = predict(
             model=model,
-            data=self.test_data,
-            batch_size=self.args.batch_size,
+            data_loader=self.data_loader,
             scaler=self.scaler,
-            uncertainty=True
         )
-
+        self.preds = test_preds
         if len(test_preds) != 0:
             self.sum_test_uncertainty += np.array(test_uncertainty).clip(min=0)
 
-    def calculate_UQ(self,
-                     val_predictions: np.ndarray,
-                     test_predictions: np.ndarray):
+    def calculate_UQ(self):
 
-        return test_predictions,
-        np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size)
+        return self.preds, np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size)
 
 
 def uncertainty_estimator_builder(uncertainty_method: str):
