@@ -19,12 +19,17 @@ class MoleculeModel(nn.Module):
         """
         super(MoleculeModel, self).__init__()
 
+        self.args = args
         self.classification = args.dataset_type == 'classification'
         self.multiclass = args.dataset_type == 'multiclass'
         self.featurizer = featurizer
         self.uncertainty = args.uncertainty
         self.mve = args.uncertainty == 'mve'
         self.use_last_hidden = True
+        if self.training:
+            self.use_last_hidden = False
+
+        self.two_outputs = args.uncertainty == 'Dropout_VI' or args.uncertainty == 'Ensemble'
         self.hold_final = args.uncertainty == 'Dropout_VI' or \
             args.uncertainty == 'Ensemble' or \
             self.mve or not self.use_last_hidden

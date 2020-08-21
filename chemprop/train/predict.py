@@ -73,6 +73,7 @@ def predict(model: nn.Module,
         if not training:
             return p, c
         else:
+            breakpoint()
             return p
 
     if not UQ or training or not two_vals:
