@@ -26,13 +26,10 @@ class MoleculeModel(nn.Module):
         self.uncertainty = args.uncertainty
         self.mve = args.uncertainty == 'mve'
         self.use_last_hidden = True
-        if self.training:
-            self.use_last_hidden = False
 
         self.two_outputs = args.uncertainty == 'Dropout_VI' or args.uncertainty == 'Ensemble'
         self.hold_final = args.uncertainty == 'Dropout_VI' or \
-            args.uncertainty == 'Ensemble' or \
-            self.mve or not self.use_last_hidden
+            args.uncertainty == 'Ensemble' or not self.use_last_hidden
 
         self.output_size = args.num_tasks
         if self.multiclass:
@@ -139,32 +136,32 @@ class MoleculeModel(nn.Module):
         """
         _output = self.ffn(self.encoder(*input))
 
+        if self.two_outputs:
+            output = self.output_layer(_output)
+            logvar = self.logvar_layer(_output)
+
+            return output, logvar
+
+        if self.mve:
+            even_indices = tensor(range(0, list(_output.size())[1], 2))
+            odd_indices = tensor(range(1, list(_output.size())[1], 2))
+
+            if self.args.cuda:
+                even_indices = even_indices.cuda()
+                odd_indices = odd_indices.cuda()
+
+            predicted_means = index_select(_output, 1, even_indices)
+            predicted_uncertainties = index_select(_output, 1, odd_indices)
+            capped_uncertainties = nn.functional.softplus(predicted_uncertainties)
+
+            output = stack((predicted_means, capped_uncertainties), dim=2).view(_output.size())
+            return output
+
         if self.featurizer:
             return self.featurize(*input)
 
-        # TODO: MVE apparently doesnt hold the final layer
         if self.hold_final:
-            if self.mve:
-                even_indices = tensor(range(0, list(_output.size())[1], 2))
-                odd_indices = tensor(range(1, list(_output.size())[1], 2))
-
-                if self.args.cuda:
-                    even_indices = even_indices.cuda()
-                    odd_indices = odd_indices.cuda()
-
-                predicted_means = index_select(_output, 1, even_indices)
-                predicted_uncertainties = index_select(_output, 1, odd_indices)
-                capped_uncertainties = nn.functional.softplus(predicted_uncertainties)
-
-                output = stack((predicted_means, capped_uncertainties), dim=2).view(_output.size())
-                return output
-            elif self.uncertainty == 'Dropout_VI' or self.uncertainty == 'Ensemble':
-                output = self.output_layer(_output)
-                logvar = self.logvar_layer(_output)
-
-                return output, logvar
-            else:
-                return _output
+            return _output
         else:
             output = self.output_layer(_output)
 
