@@ -51,10 +51,6 @@ def predict(model: nn.Module,
 
         batch_preds = batch_preds.data.cpu().numpy()
 
-        # Inverse scale if regression
-        if scaler is not None:
-            batch_preds = scaler.inverse_transform(batch_preds)
-
         # Collect vectors
         batch_preds = batch_preds.tolist()
         total_batch_preds.extend(batch_preds)
@@ -73,8 +69,11 @@ def predict(model: nn.Module,
         if not training:
             return p, c
         else:
-            breakpoint()
             return p
+
+    # Inverse scale if regression
+    if scaler is not None:
+        total_batch_preds = scaler.inverse_transform(total_batch_preds).tolist()
 
     if not UQ or training or not two_vals:
         return total_batch_preds

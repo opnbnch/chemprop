@@ -276,10 +276,10 @@ class MVEEstimator(UncertaintyEstimator):
                  data,
                  scaler: StandardScaler):
 
-        super().__init__(args, scaler)
+        super().__init__(args, data, scaler)
 
         self.sum_test_uncertainty = np.zeros(
-            (len(self.data.smiles()), self.num_tasks))
+            (len(self.data.smiles()), self.data_width))
 
     def process_model(self, model: nn.Module, data_loader):
 
@@ -288,14 +288,16 @@ class MVEEstimator(UncertaintyEstimator):
             data_loader=self.data_loader,
             scaler=self.scaler,
         )
-        # TODO: preds must handle multiple folds + ensembles
+        # TODO: preds must handle multiple folds + ensembles, make larger array + extend it
         self.preds = test_preds
         if len(test_preds) != 0:
             self.sum_test_uncertainty += np.array(test_uncertainty).clip(min=0)
 
     def calculate_UQ(self):
+        var_preds = np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size)
+        var_preds = [item for sublist in var_preds for item in sublist]
 
-        return self.preds, np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size)
+        return self.preds, var_preds
 
 
 def uncertainty_estimator_builder(uncertainty_method: str):

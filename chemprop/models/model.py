@@ -143,6 +143,7 @@ class MoleculeModel(nn.Module):
             return output, logvar
 
         if self.mve:
+            _output = self.output_layer(_output)
             even_indices = tensor(range(0, list(_output.size())[1], 2))
             odd_indices = tensor(range(1, list(_output.size())[1], 2))
 
