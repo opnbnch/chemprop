@@ -26,10 +26,7 @@ class MoleculeModel(nn.Module):
         self.uncertainty = args.uncertainty
         self.mve = args.uncertainty == 'mve'
         self.use_last_hidden = True
-
         self.two_outputs = args.uncertainty == 'Dropout_VI' or args.uncertainty == 'Ensemble'
-        self.hold_final = args.uncertainty == 'Dropout_VI' or \
-            args.uncertainty == 'Ensemble' or not self.use_last_hidden
 
         self.output_size = args.num_tasks
         if self.multiclass:
@@ -105,7 +102,7 @@ class MoleculeModel(nn.Module):
         # Create FFN model
         self.ffn = nn.Sequential(*ffn)
 
-        if self.hold_final:
+        if self.two_outputs:
             self.logvar_layer = nn.Linear(last_linear_dim, self.output_size)
 
         self.output_layer = nn.Linear(last_linear_dim, self.output_size)
@@ -161,7 +158,7 @@ class MoleculeModel(nn.Module):
         if self.featurizer:
             return self.featurize(*input)
 
-        if self.hold_final:
+        if self.use_last_hidden:
             return _output
         else:
             output = self.output_layer(_output)
