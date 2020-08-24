@@ -131,6 +131,7 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel. Either property predictions
                  or molecule features if self.featurizer is True.
         """
+
         _output = self.ffn(self.encoder(*input))
 
         if self.two_outputs:
@@ -158,10 +159,11 @@ class MoleculeModel(nn.Module):
         if self.featurizer:
             return self.featurize(*input)
 
+        # BUG: Turns off if we use multiple folds or ensemble
         if self.use_last_hidden:
-            return _output
-        else:
             output = self.output_layer(_output)
+        else:
+            return _output
 
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:

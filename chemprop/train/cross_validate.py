@@ -26,9 +26,13 @@ def cross_validate(args: TrainArgs, logger: Logger = None) -> Tuple[float, float
         args.seed = init_seed + fold_num
         args.save_dir = os.path.join(save_dir, f'fold_{fold_num}')
         makedirs(args.save_dir)
-        model_scores = run_training(args, logger)
+        model_scores, uncertainty_estimator = run_training(args, logger)
         all_scores.append(model_scores)
     all_scores = np.array(all_scores)
+
+    # TODO: Account for more than 1 fold (save all models)
+    if uncertainty_estimator:
+        uncertainty_estimator.train_estimator(args.unc_save_path)
 
     # Report results
     info(f'{args.num_folds}-fold cross validation')

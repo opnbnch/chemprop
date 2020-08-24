@@ -61,6 +61,8 @@ class CommonArgs(Tap):
     max_data_size: int = None  # Maximum number of data points to load
     num_workers: int = 8   # Number of workers for the parallel data loading (0 means sequential)
     batch_size: int = 50  # Batch size
+    split_UQ: bool = False  # Output aleatoric and epistemic uncertainty separately
+    num_preds: int = 50  # Number of preds to avg for Dropout VI (only used for that)
 
     def __init__(self, *args, **kwargs) -> None:
         super(CommonArgs, self).__init__(*args, **kwargs)
@@ -159,6 +161,7 @@ class TrainArgs(CommonArgs):
     separate_test_features_path: List[str] = None  # Path to file with features for separate test set
     config_path: str = None  # Path to a .json file containing arguments. Any arguments present in the config file will override arguments specified via the command line or by the defaults.
     ensemble_size: int = 1  # Number of models in ensemble
+    unc_save_path: str = None
 
     # Training arguments
     epochs: int = 30  # Number of epochs to run
@@ -243,6 +246,9 @@ class TrainArgs(CommonArgs):
             temp_dir = TemporaryDirectory()
             self.save_dir = temp_dir.name
 
+        if self.unc_save_path is None:
+            self.unc_save_path = os.path.join(self.save_dir, 'unc_estimator.pickle')
+
         # Fix ensemble size if loading checkpoints
         if self.checkpoint_paths is not None and len(self.checkpoint_paths) > 0:
             self.ensemble_size = len(self.checkpoint_paths)
@@ -317,8 +323,6 @@ class PredictArgs(CommonArgs):
     """PredictArgs includes CommonArgs along with additional arguments used for predicting with a chemprop model."""
     test_path: str  # Path to CSV file containing testing data for which predictions will be made
     preds_path: str  # Path to CSV file where predictions will be saved
-    split_UQ: bool = False  # Output aleatoric and epistemic uncertainty separately
-    num_preds: int = 50  # Number of preds to avg for Dropout VI (only used for that)
 
     @property
     def ensemble_size(self) -> int:

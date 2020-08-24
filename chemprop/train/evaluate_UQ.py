@@ -1,6 +1,7 @@
 import numpy as np
 import GPy
 import tqdm
+import pickle
 
 from .predict import predict
 
@@ -42,8 +43,11 @@ class UncertaintyEstimator:
                             num_workers=args.num_workers
         )
         self.data_len = len(data)
-        self.data_width = len(args.checkpoint_paths)
-        self.split_UQ = args.split_UQ
+        if args.checkpoint_paths:
+            self.data_width = len(args.checkpoint_paths)
+
+        if args.split_UQ:
+            self.split_UQ = args.split_UQ
         self.counter = 0
 
     def process_model(self, model: nn.Module, N=0):
@@ -168,27 +172,27 @@ class ExposureEstimator(UncertaintyEstimator):
                  scaler: StandardScaler):
         super().__init__(args, data, scaler)
 
-        self.sum_last_hidden_test = np.zeros(
-            (len(self.data), self.args.hidden_size))
+        self.sum_last_hidden = np.zeros((len(self.data.smiles()), self.args.hidden_size))
 
-    def process_model(self, model: nn.Module, data_loader):
+    def process_model(self, model: nn.Module, N=0):
         model.eval()
         model.use_last_hidden = False
         self.num_tasks = model.output_size
 
-        last_hidden_test = predict(
+        last_hidden = predict(
             model=model,
             data_loader=self.data_loader,
             scaler=None
         )
+        model.use_last_hidden = True
 
-        self.sum_last_hidden_test += np.array(last_hidden_test)
+        self.sum_last_hidden += np.array(last_hidden)
+        self.counter += 1
 
     def _compute_hidden_vals(self):
-        ensemble_size = self.args.ensemble_size
-        avg_last_hidden_test = self.sum_last_hidden_test / ensemble_size
+        avg_last_hidden = self.sum_last_hidden / self.counter
 
-        return avg_last_hidden_test
+        return avg_last_hidden
 
 
 class RandomForestEstimator(ExposureEstimator):
@@ -208,26 +212,41 @@ class RandomForestEstimator(ExposureEstimator):
         test_uncertainty = np.ndarray(
             shape=(len(self.data.smiles()), self.num_tasks))
 
-        # ISSUE: NO TARGETS FOR TEST DATA (CANT TRAIN A FOREST)
-        transformed_test = self.scaler.transform(
-            np.array(self.data.targets()))
-        breakpoint()
+        # load model first
+        with open(self.args.unc_save_path, 'rb') as f:
+            forest = pickle.load(f)
 
-        n_trees = 128
         for task in range(self.num_tasks):
-            forest = RandomForestRegressor(n_estimators=n_trees)
-            forest.fit(avg_last_hidden_test, transformed_test[:, task])
-
             avg_test_preds = forest.predict(avg_last_hidden_test)
             test_predictions[:, task] = avg_test_preds
 
             individual_test_predictions = np.array([estimator.predict(
                 avg_last_hidden_test) for estimator in forest.estimators_])
+
             test_uncertainty[:, task] = np.std(individual_test_predictions,
                                                axis=0)
-        test_predictions = self.scaler.inverse_transform(test_predictions)
 
-        return test_predictions, test_uncertainty
+        test_preds = self.scaler.inverse_transform(test_predictions).tolist()
+        var_preds = test_uncertainty.tolist()
+        test_preds = [item for sublist in test_preds for item in sublist]
+        var_preds = [item for sublist in var_preds for item in sublist]
+
+        return test_preds, var_preds
+
+    def train_estimator(self, path):
+        avg_last_hidden = self._compute_hidden_vals()
+
+        transformed_targets = self.scaler.transform(
+            np.array(self.data.targets()))
+
+        n_trees = 128
+        for task in range(self.num_tasks):
+            forest = RandomForestRegressor(n_estimators=n_trees)
+            forest.fit(avg_last_hidden, transformed_targets[:, task])
+
+        # Save model for use in preds
+        with open(path, 'wb') as f:
+            pickle.dump(forest, f)
 
 
 class GaussianProcessEstimator(ExposureEstimator):
