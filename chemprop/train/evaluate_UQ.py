@@ -44,6 +44,7 @@ class UncertaintyEstimator:
         self.data_len = len(data)
         self.data_width = len(args.checkpoint_paths)
         self.split_UQ = args.split_UQ
+        self.counter = 0
 
     def process_model(self, model: nn.Module, N=0):
         """Perform initialization using model and prior data.
@@ -279,25 +280,30 @@ class MVEEstimator(UncertaintyEstimator):
         super().__init__(args, data, scaler)
 
         self.sum_test_uncertainty = np.zeros(
-            (len(self.data.smiles()), self.data_width))
+            (len(self.data.smiles()), 1))
 
-    def process_model(self, model: nn.Module, data_loader):
+        self.sum_test_preds = np.zeros((len(self.data.smiles()), 1))
+
+    def process_model(self, model: nn.Module, N=0):
 
         test_preds, test_uncertainty = predict(
             model=model,
             data_loader=self.data_loader,
             scaler=self.scaler,
         )
-        # TODO: preds must handle multiple folds + ensembles, make larger array + extend it
-        self.preds = test_preds
+
         if len(test_preds) != 0:
+            self.sum_test_preds += np.array(test_preds)
             self.sum_test_uncertainty += np.array(test_uncertainty).clip(min=0)
+            self.counter += 1
 
     def calculate_UQ(self):
-        var_preds = np.sqrt(self.sum_test_uncertainty / self.args.ensemble_size)
+        test_preds = self.sum_test_preds / self.counter
+        var_preds = np.sqrt(self.sum_test_uncertainty / self.counter)
+        test_preds = [item for sublist in test_preds for item in sublist]
         var_preds = [item for sublist in var_preds for item in sublist]
 
-        return self.preds, var_preds
+        return test_preds, var_preds
 
 
 def uncertainty_estimator_builder(uncertainty_method: str):
