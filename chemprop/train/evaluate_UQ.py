@@ -279,8 +279,8 @@ class MVEEstimator(UncertaintyEstimator):
 
         super().__init__(args, data, scaler)
 
-        self.sum_test_uncertainty = np.zeros(
-            (len(self.data.smiles()), 1))
+        # Hard coded to do ONE task ... change if used for multitask
+        self.sum_test_uncertainty = np.zeros((len(self.data.smiles()), 1))
 
         self.sum_test_preds = np.zeros((len(self.data.smiles()), 1))
 
