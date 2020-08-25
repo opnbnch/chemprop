@@ -266,19 +266,15 @@ class GaussianProcessEstimator(ExposureEstimator):
         avg_last_hidden_test = self._compute_hidden_vals()
 
         test_predictions = np.ndarray(
-            shape=(len(self.test_data.smiles()), self.args.num_tasks))
+            shape=(len(self.data.smiles()), self.num_tasks))
         test_uncertainty = np.ndarray(
-            shape=(len(self.test_data.smiles()), self.args.num_tasks))
+            shape=(len(self.data.smiles()), self.num_tasks))
 
-        transformed_test = self.scaler.transform(
-            np.array(self.data.targets()))
+        # load model first
+        with open(self.args.unc_save_path, 'rb') as f:
+            gaussian = pickle.load(f)
 
-        for task in range(self.args.num_tasks):
-            kernel = GPy.kern.Linear(input_dim=self.args.hidden_size)
-            gaussian = GPy.models.SparseGPRegression(
-                avg_last_hidden_test,
-                transformed_test[:, task:task + 1], kernel)
-            gaussian.optimize()
+        for task in range(self.num_tasks):
 
             avg_test_preds, avg_test_var = gaussian.predict(
                 avg_last_hidden_test)
@@ -286,9 +282,30 @@ class GaussianProcessEstimator(ExposureEstimator):
             test_predictions[:, task:task + 1] = avg_test_preds
             test_uncertainty[:, task:task + 1] = np.sqrt(avg_test_var)
 
-        test_predictions = self.scaler.inverse_transform(test_predictions)
+        test_preds = self.scaler.inverse_transform(test_predictions)
+        var_preds = self._scale_uncertainty(test_uncertainty).tolist()
+        test_preds = [item for sublist in test_preds for item in sublist]
+        var_preds = [item for sublist in var_preds for item in sublist]
 
-        return test_predictions, self._scale_uncertainty(test_uncertainty)
+        return test_preds, var_preds
+
+    def train_estimator(self, path):
+        avg_last_hidden = self._compute_hidden_vals()
+
+        transformed_targets = self.scaler.transform(
+            np.array(self.data.targets()))
+
+        for task in range(self.num_tasks):
+            kernel = GPy.kern.Linear(input_dim=self.args.hidden_size)
+            gaussian = GPy.models.SparseGPRegression(
+                avg_last_hidden,
+                transformed_targets[:, task:task + 1], kernel)
+
+            gaussian.optimize()
+
+        # Save model for use in preds
+        with open(path, 'wb') as f:
+            pickle.dump(gaussian, f)
 
 
 class MVEEstimator(UncertaintyEstimator):
