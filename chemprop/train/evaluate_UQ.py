@@ -282,8 +282,9 @@ class GaussianProcessEstimator(ExposureEstimator):
             test_predictions[:, task:task + 1] = avg_test_preds
             test_uncertainty[:, task:task + 1] = np.sqrt(avg_test_var)
 
-        test_preds = self.scaler.inverse_transform(test_predictions)
-        var_preds = self._scale_uncertainty(test_uncertainty).tolist()
+        test_preds = self.scaler.inverse_transform(test_predictions).tolist()
+        # var_preds = self._scale_uncertainty(test_uncertainty).tolist()
+        var_preds = test_uncertainty.tolist()
         test_preds = [item for sublist in test_preds for item in sublist]
         var_preds = [item for sublist in var_preds for item in sublist]
 

@@ -22,7 +22,6 @@ from chemprop.nn_utils import param_count
 from chemprop.utils import build_optimizer, build_lr_scheduler, get_loss_func, get_metric_func, load_checkpoint,\
     makedirs, save_checkpoint, save_smiles_splits
 from .evaluate_UQ import uncertainty_estimator_builder
-# from .evaluate_UQ import uncertainty_estimator_builder
 
 
 def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
@@ -160,7 +159,7 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
 
     # Only using UQ methods if we have to train an estimator
     if args.uncertainty == 'random_forest' or args.uncertainty == 'gaussian':
-        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, val_data, scaler)
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, train_data, scaler)
     else:
         uncertainty_estimator = None
 
