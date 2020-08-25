@@ -227,9 +227,14 @@ class RandomForestEstimator(ExposureEstimator):
                                                axis=0)
 
         test_preds = self.scaler.inverse_transform(test_predictions).tolist()
-        var_preds = test_uncertainty.tolist()
+        var_preds = self._scale_uncertainty(test_uncertainty).tolist()
         test_preds = [item for sublist in test_preds for item in sublist]
         var_preds = [item for sublist in var_preds for item in sublist]
+
+        # TODO: either 1) better split for var (or feed test data)
+        # 2) Return normal preds but variance from here (more likely)
+        # 3) Ensure multiple folds + multiple ensembles works
+        # 4) Make sure we have 1 RF saved per fold (not sure on ensemble size)
 
         return test_preds, var_preds
 
