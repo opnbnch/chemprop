@@ -123,6 +123,19 @@ def load_checkpoint(path: str,
     return model
 
 
+def process_estimator(uncertainty_estimator, args, fold_num):
+    """
+    Creates the path with a given directory to save a model
+    for an uncertainty estimator.
+    """
+
+    save_path = os.path.join(args.unc_save_dir,
+                             f'unc_estimator_{fold_num}.pickle')
+
+    # Train + save model in estimator
+    uncertainty_estimator.train_estimator(save_path)
+
+
 def load_scalers(path: str) -> Tuple[StandardScaler, StandardScaler]:
     """
     Loads the scalers a model was trained with.

@@ -37,16 +37,15 @@ def predict(model: nn.Module,
         mol_batch, features_batch = batch.batch_graph(), batch.features()
 
         # Make predictions
-        with torch.no_grad():
-
-            if two_vals:
+        if two_vals:
+            with torch.no_grad():
                 batch_preds, logvar_preds = model(mol_batch, features_batch)
-                var_preds = torch.exp(logvar_preds)
-                var_preds = var_preds.data.cpu().numpy()
-                var_preds = var_preds.tolist()
-                total_var_preds.extend(var_preds)
+            var_preds = torch.exp(logvar_preds)
+            var_preds = var_preds.data.cpu().numpy().tolist()
+            total_var_preds.extend(var_preds)
 
-            else:
+        else:
+            with torch.no_grad():
                 batch_preds = model(mol_batch, features_batch)
 
         batch_preds = batch_preds.data.cpu().numpy()

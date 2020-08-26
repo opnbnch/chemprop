@@ -161,7 +161,7 @@ class TrainArgs(CommonArgs):
     separate_test_features_path: List[str] = None  # Path to file with features for separate test set
     config_path: str = None  # Path to a .json file containing arguments. Any arguments present in the config file will override arguments specified via the command line or by the defaults.
     ensemble_size: int = 1  # Number of models in ensemble
-    unc_save_path: str = None
+    unc_save_dir: str = None
 
     # Training arguments
     epochs: int = 30  # Number of epochs to run
@@ -246,8 +246,8 @@ class TrainArgs(CommonArgs):
             temp_dir = TemporaryDirectory()
             self.save_dir = temp_dir.name
 
-        if self.unc_save_path is None:
-            self.unc_save_path = os.path.join(self.save_dir, 'unc_estimator.pickle')
+        if self.unc_save_dir is None:
+            self.unc_save_dir = os.path.join(self.save_dir, 'unc_models/')
 
         # Fix ensemble size if loading checkpoints
         if self.checkpoint_paths is not None and len(self.checkpoint_paths) > 0:
