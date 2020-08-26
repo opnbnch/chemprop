@@ -2,6 +2,7 @@ import numpy as np
 import GPy
 import tqdm
 import pickle
+import os
 
 from .predict import predict
 
@@ -172,6 +173,7 @@ class ExposureEstimator(UncertaintyEstimator):
         super().__init__(args, data, scaler)
 
         self.sum_last_hidden = np.zeros((len(self.data.smiles()), self.args.hidden_size))
+        self.num_models = self.args.num_folds
 
     def process_model(self, model: nn.Module, N=0):
         model.eval()
@@ -207,23 +209,28 @@ class RandomForestEstimator(ExposureEstimator):
         avg_last_hidden_test = self._compute_hidden_vals()
 
         test_predictions = np.ndarray(
-            shape=(len(self.data.smiles()), self.num_tasks))
+            shape=(len(self.data.smiles()), self.num_models))
         test_uncertainty = np.ndarray(
-            shape=(len(self.data.smiles()), self.num_tasks))
+            shape=(len(self.data.smiles()), self.num_models))
 
-        # load model first
-        with open(self.args.unc_save_path, 'rb') as f:
-            forest = pickle.load(f)
+        breakpoint()
+        # BUG: Won't support multitask
+        for index in range(self.num_models):
+            model_path = os.path.join(self.args.unc_save_dir,
+                                      f'unc_estimator_{index}.pickle')
 
-        for task in range(self.num_tasks):
+            # load model first
+            with open(model_path, 'rb') as f:
+                forest = pickle.load(f)
+
             avg_test_preds = forest.predict(avg_last_hidden_test)
-            test_predictions[:, task] = avg_test_preds
+            test_predictions[:, index] = avg_test_preds
 
             individual_test_predictions = np.array([estimator.predict(
                 avg_last_hidden_test) for estimator in forest.estimators_])
 
-            test_uncertainty[:, task] = np.std(individual_test_predictions,
-                                               axis=0)
+            test_uncertainty[:, index] = np.std(individual_test_predictions,
+                                                axis=0)
 
         test_preds = self.scaler.inverse_transform(test_predictions).tolist()
         var_preds = self._scale_uncertainty(test_uncertainty).tolist()

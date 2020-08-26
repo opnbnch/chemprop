@@ -30,7 +30,7 @@ def cross_validate(args: TrainArgs, logger: Logger = None) -> Tuple[float, float
 
         # Save one model for each fold
         if uncertainty_estimator:
-            process_estimator(uncertainty_estimator, args, fold_num)
+            process_estimator(uncertainty_estimator, logger, args, fold_num)
         all_scores.append(model_scores)
     all_scores = np.array(all_scores)
 

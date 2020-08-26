@@ -246,8 +246,13 @@ class TrainArgs(CommonArgs):
             temp_dir = TemporaryDirectory()
             self.save_dir = temp_dir.name
 
-        if self.unc_save_dir is None:
-            self.unc_save_dir = os.path.join(self.save_dir, 'unc_models/')
+        # Make new dir for UQ methods that require saving models
+        if self.uncertainty == 'random_forest' or self.uncertainty == 'gaussian':
+            if self.unc_save_dir is None:
+                self.unc_save_dir = os.path.join(self.save_dir, 'unc_models/')
+
+            if not os.path.isdir(self.unc_save_dir):
+                os.mkdir(self.unc_save_dir)
 
         # Fix ensemble size if loading checkpoints
         if self.checkpoint_paths is not None and len(self.checkpoint_paths) > 0:

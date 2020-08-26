@@ -123,16 +123,19 @@ def load_checkpoint(path: str,
     return model
 
 
-def process_estimator(uncertainty_estimator, args, fold_num):
+def process_estimator(uncertainty_estimator, logger, args, fold_num):
     """
     Creates the path with a given directory to save a model
     for an uncertainty estimator.
     """
 
+    info = logger.info if logger is not None else print
+
     save_path = os.path.join(args.unc_save_dir,
                              f'unc_estimator_{fold_num}.pickle')
 
     # Train + save model in estimator
+    info(f'Training {args.uncertainty} estimator {fold_num}')
     uncertainty_estimator.train_estimator(save_path)
 
 
