@@ -159,7 +159,6 @@ class MoleculeModel(nn.Module):
         if self.featurizer:
             return self.featurize(*input)
 
-        # BUG: Turns off if we use multiple folds or ensemble
         if self.use_last_hidden:
             output = self.output_layer(_output)
         else:
