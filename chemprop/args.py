@@ -252,7 +252,7 @@ class TrainArgs(CommonArgs):
                 self.unc_save_dir = os.path.join(self.save_dir, 'unc_models/')
 
             if not os.path.isdir(self.unc_save_dir):
-                os.mkdir(self.unc_save_dir)
+                os.makedirs(self.unc_save_dir, exist_ok=True)
 
         # Fix ensemble size if loading checkpoints
         if self.checkpoint_paths is not None and len(self.checkpoint_paths) > 0:

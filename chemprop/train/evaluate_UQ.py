@@ -9,9 +9,14 @@ from .predict import predict
 from chemprop.utils import get_avg_UQ
 from argparse import Namespace
 from sklearn.ensemble import RandomForestRegressor
-from typing import Any, Callable, List, Tuple
-from chemprop.data import MoleculeDataset, MoleculeDataLoader, StandardScaler
+from chemprop.data import MoleculeDataLoader, StandardScaler
 import torch.nn as nn
+
+# Future TODO:
+# 1) Support multi-tasking
+# 2) Continue testing models work properly w/ num_folds and ensemble_size
+# 3) Add unc_estimator to training (script chooses best model with validation)
+# 4) Make sure scalars are working properly (esp. with ensembles & dropout_vi)
 
 
 class UncertaintyEstimator:
@@ -213,8 +218,6 @@ class RandomForestEstimator(ExposureEstimator):
         test_uncertainty = np.ndarray(
             shape=(len(self.data.smiles()), self.num_models))
 
-        breakpoint()
-        # BUG: Won't support multitask
         for index in range(self.num_models):
             model_path = os.path.join(self.args.unc_save_dir,
                                       f'unc_estimator_{index}.pickle')
@@ -232,19 +235,22 @@ class RandomForestEstimator(ExposureEstimator):
             test_uncertainty[:, index] = np.std(individual_test_predictions,
                                                 axis=0)
 
+        test_predictions = np.nanmean(test_predictions, 1)
+        test_uncertainty = np.nanmean(test_uncertainty, 1)
+
         test_preds = self.scaler.inverse_transform(test_predictions).tolist()
         var_preds = self._scale_uncertainty(test_uncertainty).tolist()
-        test_preds = [item for sublist in test_preds for item in sublist]
-        var_preds = [item for sublist in var_preds for item in sublist]
 
-        # TODO: either 1) better split for var (or feed test data)
-        # 2) Return normal preds but variance from here (more likely)
-        # 3) Ensure multiple folds + multiple ensembles works
-        # 4) Make sure we have 1 RF saved per fold (not sure on ensemble size)
-
+        # TODO: Test returning average of D-MPNN preds instead of RF preds
         return test_preds, var_preds
 
     def train_estimator(self, path):
+        """
+        Trains an RF estimator during D-MPNN model training and saves it for
+        later use during prediction time.
+        :str path: path to save RF model
+        """
+
         avg_last_hidden = self._compute_hidden_vals()
 
         transformed_targets = self.scaler.transform(
@@ -272,31 +278,39 @@ class GaussianProcessEstimator(ExposureEstimator):
         avg_last_hidden_test = self._compute_hidden_vals()
 
         test_predictions = np.ndarray(
-            shape=(len(self.data.smiles()), self.num_tasks))
+            shape=(len(self.data.smiles()), self.num_models))
         test_uncertainty = np.ndarray(
-            shape=(len(self.data.smiles()), self.num_tasks))
+            shape=(len(self.data.smiles()), self.num_models))
 
-        # load model first
-        with open(self.args.unc_save_path, 'rb') as f:
-            gaussian = pickle.load(f)
+        for index in range(self.num_models):
+            model_path = os.path.join(self.args.unc_save_dir,
+                                      f'unc_estimator_{index}.pickle')
 
-        for task in range(self.num_tasks):
+            # load model first
+            with open(model_path, 'rb') as f:
+                gaussian = pickle.load(f)
 
             avg_test_preds, avg_test_var = gaussian.predict(
                 avg_last_hidden_test)
 
-            test_predictions[:, task:task + 1] = avg_test_preds
-            test_uncertainty[:, task:task + 1] = np.sqrt(avg_test_var)
+            test_predictions[:, index:index + 1] = avg_test_preds
+            test_uncertainty[:, index:index + 1] = np.sqrt(avg_test_var)
+
+        test_predictions = np.nanmean(test_predictions, 1)
+        test_uncertainty = np.nanmean(test_uncertainty, 1)
 
         test_preds = self.scaler.inverse_transform(test_predictions).tolist()
-        # var_preds = self._scale_uncertainty(test_uncertainty).tolist()
-        var_preds = test_uncertainty.tolist()
-        test_preds = [item for sublist in test_preds for item in sublist]
-        var_preds = [item for sublist in var_preds for item in sublist]
+        var_preds = self._scale_uncertainty(test_uncertainty).tolist()
 
+        # TODO: Test returning average of D-MPNN preds instead of Gaussian pred
         return test_preds, var_preds
 
     def train_estimator(self, path):
+        """
+        Trains a gaussian estimator during D-MPNN model training and saves it
+        for later use during prediction time.
+        :str path: path to save gaussian model
+        """
         avg_last_hidden = self._compute_hidden_vals()
 
         transformed_targets = self.scaler.transform(
