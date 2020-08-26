@@ -43,11 +43,10 @@ class UncertaintyEstimator:
                             num_workers=args.num_workers
         )
         self.data_len = len(data)
-        if args.checkpoint_paths:
+        if args.checkpoint_paths is not None:
             self.data_width = len(args.checkpoint_paths)
 
-        if args.split_UQ:
-            self.split_UQ = args.split_UQ
+        self.split_UQ = args.split_UQ
         self.counter = 0
 
     def process_model(self, model: nn.Module, N=0):

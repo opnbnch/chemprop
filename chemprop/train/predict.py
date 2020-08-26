@@ -39,7 +39,7 @@ def predict(model: nn.Module,
         # Make predictions
         with torch.no_grad():
 
-            if two_vals and not training:
+            if two_vals:
                 batch_preds, logvar_preds = model(mol_batch, features_batch)
                 var_preds = torch.exp(logvar_preds)
                 var_preds = var_preds.data.cpu().numpy()
