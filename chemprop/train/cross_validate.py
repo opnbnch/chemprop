@@ -7,7 +7,7 @@ import numpy as np
 from .run_training import run_training
 from chemprop.args import TrainArgs
 from chemprop.data.utils import get_task_names
-from chemprop.utils import makedirs
+from chemprop.utils import makedirs, process_estimator
 
 
 def cross_validate(args: TrainArgs, logger: Logger = None) -> Tuple[float, float]:
@@ -26,7 +26,11 @@ def cross_validate(args: TrainArgs, logger: Logger = None) -> Tuple[float, float
         args.seed = init_seed + fold_num
         args.save_dir = os.path.join(save_dir, f'fold_{fold_num}')
         makedirs(args.save_dir)
-        model_scores = run_training(args, logger)
+        model_scores, uncertainty_estimator = run_training(args, logger)
+
+        # Save one model for each fold
+        if uncertainty_estimator:
+            process_estimator(uncertainty_estimator, logger, args, fold_num)
         all_scores.append(model_scores)
     all_scores = np.array(all_scores)
 

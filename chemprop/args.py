@@ -151,7 +151,7 @@ class TrainArgs(CommonArgs):
     depth: int = 3  # Number of message passing steps
     dropout: float = 0.0  # Dropout probability
     activation: Literal['ReLU', 'LeakyReLU', 'PReLU', 'tanh', 'SELU', 'ELU'] = 'ReLU'  # Activation function
-    uncertainty: Literal['Dropout_VI', 'Ensemble'] = None  # How to calculate uncertainty
+    uncertainty: Literal['Dropout_VI', 'Ensemble', 'random_forest', 'gaussian', 'mve'] = None  # How to calculate uncertainty
     atom_messages: bool = False  # Centers messages on atoms instead of on bonds
     undirected: bool = False  # Undirected edges (always sum the two relevant bond vectors)
     ffn_hidden_size: int = None  # Hidden dim for higher-capacity FFN (defaults to hidden_size)
@@ -161,7 +161,7 @@ class TrainArgs(CommonArgs):
     separate_test_features_path: List[str] = None  # Path to file with features for separate test set
     config_path: str = None  # Path to a .json file containing arguments. Any arguments present in the config file will override arguments specified via the command line or by the defaults.
     ensemble_size: int = 1  # Number of models in ensemble
-    regularization_scale: float = 1e-4 # Concrete dropout regularization scale
+    unc_save_dir: str = None
 
     # Training arguments
     epochs: int = 30  # Number of epochs to run
@@ -245,6 +245,14 @@ class TrainArgs(CommonArgs):
         if self.save_dir is None:
             temp_dir = TemporaryDirectory()
             self.save_dir = temp_dir.name
+
+        # Make new dir for UQ methods that require saving models
+        if self.uncertainty == 'random_forest' or self.uncertainty == 'gaussian':
+            if self.unc_save_dir is None:
+                self.unc_save_dir = os.path.join(self.save_dir, 'unc_models/')
+
+            if not os.path.isdir(self.unc_save_dir):
+                os.makedirs(self.unc_save_dir, exist_ok=True)
 
         # Fix ensemble size if loading checkpoints
         if self.checkpoint_paths is not None and len(self.checkpoint_paths) > 0:

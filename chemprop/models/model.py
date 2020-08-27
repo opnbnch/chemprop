@@ -3,7 +3,7 @@ import torch.nn as nn
 from .mpn import MPN
 from chemprop.args import TrainArgs
 from chemprop.nn_utils import get_activation_function, initialize_weights
-from torch import var, mean
+from torch import var, mean, tensor, index_select, stack
 
 
 class MoleculeModel(nn.Module):
@@ -19,10 +19,14 @@ class MoleculeModel(nn.Module):
         """
         super(MoleculeModel, self).__init__()
 
+        self.args = args
         self.classification = args.dataset_type == 'classification'
         self.multiclass = args.dataset_type == 'multiclass'
         self.featurizer = featurizer
         self.uncertainty = args.uncertainty
+        self.mve = args.uncertainty == 'mve'
+        self.use_last_hidden = True
+        self.two_outputs = args.uncertainty == 'Dropout_VI' or args.uncertainty == 'Ensemble'
 
         self.output_size = args.num_tasks
         if self.multiclass:
@@ -66,10 +70,15 @@ class MoleculeModel(nn.Module):
         dropout = nn.Dropout(args.dropout)
         activation = get_activation_function(args.activation)
 
+        if self.mve:
+            self.output_size *= 2
+
+        args.last_hidden_size = self.output_size
         # Create FFN layers
         if args.ffn_num_layers == 1:
             ffn = [
                 dropout,
+
             ]
             last_linear_dim = first_linear_dim
         else:
@@ -93,7 +102,7 @@ class MoleculeModel(nn.Module):
         # Create FFN model
         self.ffn = nn.Sequential(*ffn)
 
-        if self.uncertainty:
+        if self.two_outputs:
             self.logvar_layer = nn.Linear(last_linear_dim, self.output_size)
 
         self.output_layer = nn.Linear(last_linear_dim, self.output_size)
@@ -122,18 +131,38 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel. Either property predictions
                  or molecule features if self.featurizer is True.
         """
+
         _output = self.ffn(self.encoder(*input))
 
-        if self.featurizer:
-            return self.featurize(*input)
-
-        if self.uncertainty:
+        if self.two_outputs:
             output = self.output_layer(_output)
             logvar = self.logvar_layer(_output)
 
             return output, logvar
-        else:
+
+        if self.mve:
+            _output = self.output_layer(_output)
+            even_indices = tensor(range(0, list(_output.size())[1], 2))
+            odd_indices = tensor(range(1, list(_output.size())[1], 2))
+
+            if self.args.cuda:
+                even_indices = even_indices.cuda()
+                odd_indices = odd_indices.cuda()
+
+            predicted_means = index_select(_output, 1, even_indices)
+            predicted_uncertainties = index_select(_output, 1, odd_indices)
+            capped_uncertainties = nn.functional.softplus(predicted_uncertainties)
+
+            output = stack((predicted_means, capped_uncertainties), dim=2).view(_output.size())
+            return output
+
+        if self.featurizer:
+            return self.featurize(*input)
+
+        if self.use_last_hidden:
             output = self.output_layer(_output)
+        else:
+            return _output
 
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
@@ -142,5 +171,5 @@ class MoleculeModel(nn.Module):
             output = output.reshape((output.size(0), -1, self.num_classes))  # batch size x num targets x num classes per target
             if not self.training:
                 output = self.multiclass_softmax(output)  # to get probabilities during evaluation, but not during training as we're using CrossEntropyLoss
- 
+
         return output

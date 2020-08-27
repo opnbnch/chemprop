@@ -65,19 +65,16 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
     if args.features_scaling:
         test_data.normalize_features(features_scaler)
 
+    # Initialize uncertainty estimator
+    if args.uncertainty:
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, test_data, scaler)
+
     # Predict with each model individually and sum predictions
     if not args.uncertainty:
         if args.dataset_type == 'multiclass':
             sum_preds = np.zeros((len(test_data), num_tasks, args.multiclass_num_classes))
         else:
             sum_preds = np.zeros((len(test_data), num_tasks))
-    else:
-        if args.uncertainty == 'Dropout_VI':
-            sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
-            sum_var = np.zeros((len(test_data), len(args.checkpoint_paths) * args.num_preds))
-        else:
-            sum_batch = np.zeros((len(test_data), len(args.checkpoint_paths)))
-            sum_var = np.zeros((len(test_data), len(args.checkpoint_paths)))
 
     # Create data loader
     test_data_loader = MoleculeDataLoader(
@@ -85,8 +82,6 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
         batch_size=args.batch_size,
         num_workers=args.num_workers
     )
-    if args.uncertainty:
-        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, scaler)
 
     print(f'Predicting with an ensemble of {len(args.checkpoint_paths)} models')
     for N, checkpoint_path in tqdm(enumerate(args.checkpoint_paths), total=len(args.checkpoint_paths)):
@@ -101,14 +96,14 @@ def make_predictions(args: PredictArgs, smiles: List[str] = None) -> List[Option
             )
             sum_preds += np.array(model_preds)
         else:
-            sum_batch, sum_var = uncertainty_estimator.UQ_predict(model, sum_batch, sum_var, test_data_loader, N)
+            uncertainty_estimator.process_model(model, N)
 
     # Ensemble predictions
     if not args.uncertainty:
         avg_preds = sum_preds / len(args.checkpoint_paths)
         avg_preds = avg_preds.tolist()
     else:
-        avg_preds, avg_UQ = uncertainty_estimator.calculate_UQ(sum_batch, sum_var)
+        avg_preds, avg_UQ = uncertainty_estimator.calculate_UQ()
         if type(avg_UQ) is tuple:
             aleatoric, epistemic = avg_UQ
 

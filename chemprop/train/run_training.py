@@ -21,7 +21,7 @@ from chemprop.models import MoleculeModel
 from chemprop.nn_utils import param_count
 from chemprop.utils import build_optimizer, build_lr_scheduler, get_loss_func, get_metric_func, load_checkpoint,\
     makedirs, save_checkpoint, save_smiles_splits
-# from .evaluate_UQ import uncertainty_estimator_builder
+from .evaluate_UQ import uncertainty_estimator_builder
 
 
 def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
@@ -157,6 +157,12 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         cache=cache
     )
 
+    # Only using UQ methods if we have to train an estimator
+    if args.uncertainty == 'random_forest' or args.uncertainty == 'gaussian':
+        uncertainty_estimator = uncertainty_estimator_builder(args.uncertainty)(args, train_data, scaler)
+    else:
+        uncertainty_estimator = None
+
     # Train ensemble of models
     for model_idx in range(args.ensemble_size):
         # Tensorboard writer
@@ -264,6 +270,9 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         info(f'Model {model_idx} test {args.metric} = {avg_test_score:.6f}')
         writer.add_scalar(f'test_{args.metric}', avg_test_score, 0)
 
+        if uncertainty_estimator is not None:
+            uncertainty_estimator.process_model(model)
+
         if args.show_individual_scores:
             # Individual test scores
             for task_name, test_score in zip(args.task_names, test_scores):
@@ -292,4 +301,4 @@ def run_training(args: TrainArgs, logger: Logger = None) -> List[float]:
         for task_name, ensemble_score in zip(args.task_names, ensemble_scores):
             info(f'Ensemble test {task_name} {args.metric} = {ensemble_score:.6f}')
 
-    return ensemble_scores
+    return ensemble_scores, uncertainty_estimator

@@ -23,6 +23,8 @@ def predict(model: nn.Module,
     """
 
     UQ = model.uncertainty
+    two_vals = UQ == 'Dropout_VI' or UQ == 'Ensemble'
+    mve = model.mve
     training = model.training
     if UQ != 'Dropout_VI':
         model.eval()
@@ -35,29 +37,44 @@ def predict(model: nn.Module,
         mol_batch, features_batch = batch.batch_graph(), batch.features()
 
         # Make predictions
-        with torch.no_grad():
-            if UQ and not training:
+        if two_vals:
+            with torch.no_grad():
                 batch_preds, logvar_preds = model(mol_batch, features_batch)
-                var_preds = torch.exp(logvar_preds)
-                var_preds = var_preds.data.cpu().numpy()
-                var_preds = var_preds.tolist()
-                total_var_preds.extend(var_preds)
-            elif UQ:
-                batch_preds, logvar_preds = model(mol_batch, features_batch)
-            else:
+            var_preds = torch.exp(logvar_preds)
+            var_preds = var_preds.data.cpu().numpy().tolist()
+            total_var_preds.extend(var_preds)
+
+        else:
+            with torch.no_grad():
                 batch_preds = model(mol_batch, features_batch)
 
         batch_preds = batch_preds.data.cpu().numpy()
-
-        # Inverse scale if regression
-        if scaler is not None:
-            batch_preds = scaler.inverse_transform(batch_preds)
 
         # Collect vectors
         batch_preds = batch_preds.tolist()
         total_batch_preds.extend(batch_preds)
 
-    if not UQ or training:
+    if mve:
+        p = []
+        c = []
+        for i in range(len(total_batch_preds)):
+            p.append([total_batch_preds[i][j] for j in range(len(total_batch_preds[i])) if j % 2 == 0])
+            c.append([total_batch_preds[i][j] for j in range(len(total_batch_preds[i])) if j % 2 == 1])
+
+        if scaler is not None:
+            p = scaler.inverse_transform(p).tolist()
+            c = (scaler.stds**2 * c).tolist()
+
+        if not training:
+            return p, c
+        else:
+            return p
+
+    # Inverse scale if regression
+    if scaler is not None:
+        total_batch_preds = scaler.inverse_transform(total_batch_preds).tolist()
+
+    if not UQ or training or not two_vals:
         return total_batch_preds
     else:
         return total_batch_preds, total_var_preds
