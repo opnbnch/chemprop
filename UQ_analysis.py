@@ -155,7 +155,8 @@ def analyze(args):
     spearman = '%s' % float('%.4g' % spearman)
     print('Spearman value for absolute err <-> uncertainty: ' + str(spearman))
 
-    _create_scatter(value_col, preds_col)
+    if not args.quiet:
+        _create_scatter(value_col, preds_col)
 
 
 if __name__ == '__main__':
@@ -165,6 +166,8 @@ if __name__ == '__main__':
                         help='Path to a csv file containing test data')
     parser.add_argument('preds_path', type=str,
                         help='Path to a csv file containing preds')
+    parser.add_argument('--save_dir', type=str, default=None,
+                        help='Directory to save analysis')
     parser.add_argument('--value_col', '--v', type=str, default=None,
                         help='Value column of test_csv')
     parser.add_argument('--uncertainty_col', '--UQ', type=str, default=None,
@@ -173,6 +176,8 @@ if __name__ == '__main__':
                         help='Predictions column of preds_csv')
     parser.add_argument('--split_UQ', action='store_true', default=False,
                         help='Uncertainty is split to aleatoric, epistemic')
+    parser.add_argument('--quiet', action='store_true', default=False,
+                        help='Supress graphs')
     args = parser.parse_args()
 
     analyze(args)
