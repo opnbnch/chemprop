@@ -236,6 +236,8 @@ Dropout_VI includes the flag `--num_preds [N]`. The default value for N is set a
 
 Uncertainty is scaled based upon standard deviation and mean found during training. However, these values are still only interpretable relative to eachother and should be used as a ranking system rather than an absolute value.
 
+**Note that uncertainty currently will not work for classification or multitask methods.**
+
 ## Interpreting
 
 It is often helpful to provide explanation of model prediction (i.e., this molecule is toxic because of this substructure). Given a trained model, you can interpret the model prediction using the following command
