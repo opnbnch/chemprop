@@ -212,7 +212,7 @@ python predict.py --test_path data/tox21.csv --checkpoint_path tox21_checkpoints
 Uncertainty quantification can be performed during predictions for regression datasets only (Openbench implementations). We have five (5) different methods for predicting uncertainty currently.
 
 1. Dropout_VI
-  A) --num_preds [N]
+  >A) --num_preds [N]
 2. Ensemble
 3. random_forest
 4. gaussian
@@ -221,14 +221,16 @@ Uncertainty quantification can be performed during predictions for regression da
 These methods must be flagged during training and will be recalled and used upon predictions. Predictions will output two (2) or three (3) columns instead of one: Value, Uncertainty OR Value, Aleatoric, Epistemic.
 
 ```
-python train.py --data_path data/tox21.csv --checkpoint_dir checkpoints/tox21 **--uncertainty [METHOD]**
+python train.py --data_path data/tox21.csv --checkpoint_dir checkpoints/tox21 --uncertainty [METHOD]
 ```
 
 Methods one (1) Dropout_VI, and two (2) Ensemble can be flagged during predictions to split the uncertainty to output these three columns intead of two.
 
 ```
-python predict.py --test_path data/tox21_test.csv --checkpoint_dir checkpoints/tox21 --preds_path predictions/tox21 **--split_UQ**
+python predict.py --test_path data/tox21_test.csv --checkpoint_dir checkpoints/tox21 --preds_path predictions/tox21 --split_UQ
 ```
+
+Uncertainty is scaled based upon standard deviation and mean found during training. However, these values are still only interpretable relative to eachother and should be used as a ranking system rather than an absolute value.
 
 ## Interpreting
 
