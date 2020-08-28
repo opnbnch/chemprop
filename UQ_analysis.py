@@ -207,6 +207,11 @@ def analysis_outside(outside_args):
     args.save_dir = outside_args['--save_dir']
     args.quiet = True
 
+    args.value_col = None
+    args.uncertainty_col = None
+    args.preds_col = None
+    args.split_UQ = False
+
     analyze(args)
 
 
