@@ -2,6 +2,28 @@ import json
 from os import path
 
 
+def create_args(args_dict, master_script):
+    """
+    Create a list in order of key, value for command line args.
+    For no value args in .json file use value of [].
+    :list args: copy of sys.argv command line args
+    :int pos: position in list of the .json file
+    """
+    args_list = [master_script]
+
+    for k, v in args_dict.items():
+        # keys must use "--" to start but this is optional for user input
+        if k[:2] != "--":
+            k = _fix_key_format(k)
+
+        args_list.append(str(k))
+        if type(v) is list and len(v) == 0:
+            continue
+        args_list.append(str(v))
+
+    return args_list
+
+
 def get_args_list(args, pos):
     """
     Create a list in order of key, value for command line args.

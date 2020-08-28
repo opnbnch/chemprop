@@ -193,6 +193,23 @@ def analyze(args):
         _create_scatter(value_col, preds_col)
 
 
+def analysis_outside(outside_args):
+    """
+    Used for calling this script from another python script.
+    :dict outside_args: dict of args to use
+    """
+
+    parser = argparse.ArgumentParser()
+    args, _ = parser.parse_known_args()
+
+    args.test_path = outside_args['--test_path']
+    args.preds_path = outside_args['--preds_path']
+    args.save_dir = outside_args['--save_dir']
+    args.quiet = True
+
+    analyze(args)
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
