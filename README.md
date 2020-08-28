@@ -219,13 +219,13 @@ Uncertainty quantification can be performed during predictions for regression da
 4. gaussian
 5. mve
 
-These methods must be flagged during training and will be recalled and used upon predictions. Predictions will output two (2) or three (3) columns instead of one: Value, Uncertainty OR Value, Aleatoric, Epistemic.
+These methods must be **flagged during training** and will be recalled and used upon predictions. Predictions will output two columns instead of one: Value, Uncertainty.
 
 ```
 python train.py --data_path data/tox21.csv --checkpoint_dir checkpoints/tox21 --uncertainty [METHOD]
 ```
 
-Methods one (1) Dropout_VI, and two (2) Ensemble can be flagged during predictions to split the uncertainty to output these three columns intead of two.
+Methods one (1) Dropout_VI, and two (2) Ensemble can be flagged during predictions to split the uncertainty to output three (3) columns: Value, Aleatoric, Epistemic.
 
 ```
 python predict.py --test_path data/tox21_test.csv --checkpoint_dir checkpoints/tox21 --preds_path predictions/tox21 --split_UQ
