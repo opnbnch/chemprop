@@ -4,7 +4,7 @@ from UQ_analysis import analysis_outside
 import json
 import argparse
 import os
-import tqdm.tqdm
+from tqdm import tqdm
 
 UQ_methods = ['Dropout_VI', 'Ensemble', 'random_forest', 'gaussian', 'mve']
 
