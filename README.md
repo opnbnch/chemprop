@@ -236,7 +236,7 @@ Additionally method one (1), Dropout_VI, and method two (2), Ensemble, have hype
 * Dropout_VI includes the flag `--num_preds <N>`. The default value for N is set to 50 if left unspecified. It also includes the flag `--dropout <M>`. The default value for M is set to 0.10 if left unspecified.
 * Ensemble includes the flag `--ensemble_size <X>`. The default value for X is set at 5 if left unspecified. 
 
-**It is highly recommended to optimize these parameters for each individual endpoint.**
+**It is highly recommended to optimize these parameters for each endpoint independently.**
 
 Uncertainty is scaled based upon standard deviation and mean found during training. However, these values are still only interpretable relative to eachother and should be used as a ranking system rather than an absolute value.
 
