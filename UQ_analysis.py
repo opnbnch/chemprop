@@ -2,6 +2,8 @@ import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+import json
+import os
 
 from sklearn.metrics import r2_score
 from scipy import stats
@@ -130,6 +132,34 @@ def _create_scatter(x, y):
     plt.show()
 
 
+def _save_analysis(preds_r2, unc_r2, spearman, args):
+    """
+    Saves the values from analysis to a .json file.
+    Uses the directory given and strips the name of the
+    predictions file to name this analysis file.
+    :float preds_r2: r2 value for predictions calculated
+    :float unc_r2: r2 value for uncertaitny calculated
+    :float spearman: spearman value calculated
+    :args: args provided by user
+    """
+
+    preds_name = args.preds_path
+    save_dir = args.save_dir
+
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+
+    prefix = preds_name.split('/')[-1][:-4] + '_analysis.json'
+    path = os.path.join(save_dir, prefix)
+
+    data = {'Predictions R^2': preds_r2,
+            'Uncertainty R^2': unc_r2,
+            'Spearman': spearman}
+
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
 def analyze(args):
     test_csv = pd.read_csv(args.test_path)
     preds_csv = pd.read_csv(args.preds_path)
@@ -152,8 +182,11 @@ def analyze(args):
     print('R2 for absolute err <-> uncertainty: ' + str(unc_r2))
 
     spearman, _ = stats.spearmanr(abs_err, uncertainty_col)
-    spearman = '%s' % float('%.4g' % spearman)
+    spearman = float('%.4g' % spearman)
     print('Spearman value for absolute err <-> uncertainty: ' + str(spearman))
+
+    if args.save_dir:
+        _save_analysis(preds_r2, unc_r2, spearman, args)
 
     if not args.quiet:
         _create_scatter(value_col, preds_col)
