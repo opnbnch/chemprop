@@ -212,9 +212,9 @@ python predict.py --test_path data/tox21.csv --checkpoint_path tox21_checkpoints
 Uncertainty quantification can be performed during predictions for regression datasets only (Openbench implementations). We have five (5) different methods for predicting uncertainty currently.
 
 1. Dropout_VI
-  * --num_preds
+    * --num_preds
 2. Ensemble
-  * --ensemble_size
+    * --ensemble_size
 3. random_forest
 4. gaussian
 5. mve
