@@ -1,0 +1,10 @@
+{
+    "--dataset_type": "regression",
+    "--metric": "r2",
+    "--split_type": "scaffold_balanced",
+    "--save_smiles_splits": [],
+    "--quiet": [],
+    "--features_generator": "rdkit_2d_normalized",
+    "--no_features_scaling": [],
+    "--gpu": "0"
+}
