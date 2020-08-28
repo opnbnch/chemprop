@@ -66,7 +66,7 @@ def main(train_args_path, pred_args_path, data_dir):
     base_train_args = load_file(train_args_path)
     base_predict_args = load_file(pred_args_path)
 
-    dataset_list = os.listdir(data_dir)
+    dataset_list = [f for f in os.listdir(data_dir) if not f.startswith('.')]
 
     for dataset in tqdm(dataset_list):
         print('Current dataset: ' + dataset)
