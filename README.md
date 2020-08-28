@@ -212,7 +212,6 @@ python predict.py --test_path data/tox21.csv --checkpoint_path tox21_checkpoints
 Uncertainty quantification can be performed during predictions for regression datasets only (Openbench implementations). We have five (5) different methods for predicting uncertainty currently.
 
 1. Dropout_VI
-  >A) --num_preds [N]
 2. Ensemble
 3. random_forest
 4. gaussian
@@ -229,6 +228,9 @@ Methods one (1) Dropout_VI, and two (2) Ensemble can be flagged during predictio
 ```
 python predict.py --test_path data/tox21_test.csv --checkpoint_dir checkpoints/tox21 --preds_path predictions/tox21 --split_UQ
 ```
+
+Additionally method one (1), Dropout_VI, and method two (2), Ensemble, have hyperparamters that may be specified during training.
+Dropout_VI includes the flag **--num_preds [N]**. The default value for N is set at 0.10 if left unspecified. Ensebmel includes the flag **num_ensembles [M]**. The default value for M is set at 5 if left unsepcified. It is highly recommended to optimize these parameters for each individual dataset.
 
 Uncertainty is scaled based upon standard deviation and mean found during training. However, these values are still only interpretable relative to eachother and should be used as a ranking system rather than an absolute value.
 
