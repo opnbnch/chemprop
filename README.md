@@ -222,7 +222,7 @@ Uncertainty quantification can be performed during predictions for regression da
 These methods must be **flagged during training** and will be recalled and used upon predictions. Predictions will output two columns instead of one: Value, Uncertainty.
 
 ```
-python train.py --data_path data/tox21.csv --checkpoint_dir checkpoints/tox21 --uncertainty [METHOD]
+python train.py --data_path data/tox21.csv --checkpoint_dir checkpoints/tox21 --uncertainty <METHOD>
 ```
 
 Methods one (1) Dropout_VI, and two (2) Ensemble can be flagged during predictions to split the uncertainty to output three (3) columns: Value, Aleatoric, Epistemic.
@@ -232,7 +232,7 @@ python predict.py --test_path data/tox21_test.csv --checkpoint_dir checkpoints/t
 ```
 
 Additionally method one (1), Dropout_VI, and method two (2), Ensemble, have hyperparamters that may be specified during training.
-Dropout_VI includes the flag `--num_preds [N]`. The default value for N is set at 0.10 if left unspecified. Ensemble includes the flag `--num_ensembles [M]`. The default value for M is set at 5 if left unspecified. It is highly recommended to optimize these parameters for each individual endpoint.
+Dropout_VI includes the flag `--num_preds <N>`. The default value for N is set at 0.10 if left unspecified. Ensemble includes the flag `--num_ensembles <M>`. The default value for M is set at 5 if left unspecified. It is highly recommended to optimize these parameters for each individual endpoint.
 
 Uncertainty is scaled based upon standard deviation and mean found during training. However, these values are still only interpretable relative to eachother and should be used as a ranking system rather than an absolute value.
 
