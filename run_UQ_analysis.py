@@ -48,7 +48,7 @@ def append_predict_args(base_args, ckpnt_path):
     """
 
     test_path = os.path.join(ckpnt_path, 'fold_0', 'test_full.csv')
-    preds_file_name = ckpnt_path.split('/')[-1][:-4]
+    preds_file_name = ckpnt_path.split('/')[-1]
     preds_path = os.path.join('predictions', preds_file_name + '_preds.csv')
 
     additional_args = {'--test_path': test_path,
@@ -85,7 +85,7 @@ def main(train_args_path, pred_args_path, data_dir):
             predict_outside(pred_args_dict)
 
             # Analysis
-            analysis_path = os.path.join('analysis', uncertainty)
+            analysis_path = os.path.join('analysis', dataset[:-4])
             analysis_save = {'--save_dir': analysis_path}
 
             pred_args_dict.update(analysis_save)
