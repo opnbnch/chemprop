@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from chemprop.data.utils import get_smiles
 from chemprop.features import get_available_features_generators, get_features_generator, load_features, save_features
 from chemprop.utils import makedirs
-from chemprop.process_args_file import get_args_list
+from chemprop.process_args_file import get_args_list, create_args
 import sys
 
 
@@ -112,6 +112,17 @@ def generate_and_save_features(args: Args):
         shutil.rmtree(temp_save_dir)
     except OverflowError:
         print('Features array is too large to save as a single file. Instead keeping features as a directory of files.')
+
+
+def train_outside(args_dict):
+    """
+    Used for calling this script from another python script.
+    :dict args_dict: dict of args to use
+    """
+
+    sys.argv = create_args(args_dict, 'save_features.py')
+
+    generate_and_save_features(Args().parse_args())
 
 
 if __name__ == '__main__':
