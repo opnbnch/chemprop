@@ -114,7 +114,7 @@ def generate_and_save_features(args: Args):
         print('Features array is too large to save as a single file. Instead keeping features as a directory of files.')
 
 
-def train_outside(args_dict):
+def features_outside(args_dict):
     """
     Used for calling this script from another python script.
     :dict args_dict: dict of args to use

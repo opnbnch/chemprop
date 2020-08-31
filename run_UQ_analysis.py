@@ -68,7 +68,7 @@ def main(train_args_path, pred_args_path, data_dir):
 
     dataset_list = [f for f in os.listdir(data_dir) if not f.startswith('.')]
 
-    for dataset in tqdm(dataset_list):
+    for num, dataset in tqdm(enumerate(dataset_list)):
         print('Current dataset: ' + dataset)
         path = os.path.join(data_dir, dataset)
 
