@@ -30,26 +30,31 @@ def append_train_args(base_args, data_name, path, uncertainty):
     :str uncertainty: UQ method being used
     """
     save_dir = 'ckpnts/' + uncertainty + '_' + data_name[:-4]
+    features_path = 'features/' + data_name[:-4] + '_features.npz'
 
     additional_args = {'--data_path': path,
                        '--save_dir': save_dir,
-                       '--uncertainty': uncertainty}
+                       '--uncertainty': uncertainty,
+                       '--features_path': features_path}
     base_copy = base_args.copy()
     base_copy.update(additional_args)
 
     return base_copy
 
 
-def append_predict_args(base_args, ckpnt_path):
+def append_predict_args(base_args, ckpnt_path, preds_path):
     """
     Appends dataset and UQ specific args to the base predict args.
     :dict base_args: basic predict args
     :str ckpnt_path: current ckpnt loc
+    :str preds_path: path to preds to use, None by default
     """
 
     test_path = os.path.join(ckpnt_path, 'fold_0', 'test_full.csv')
-    preds_file_name = ckpnt_path.split('/')[-1]
-    preds_path = os.path.join('predictions', preds_file_name + '_preds.csv')
+
+    if not preds_path:
+        preds_file_name = ckpnt_path.split('/')[-1]
+        preds_path = os.path.join('predictions', preds_file_name + '_preds.csv')
 
     additional_args = {'--test_path': test_path,
                        '--preds_path': preds_path,
@@ -61,7 +66,7 @@ def append_predict_args(base_args, ckpnt_path):
     return base_copy
 
 
-def main(train_args_path, pred_args_path, data_dir):
+def main(train_args_path, pred_args_path, data_dir, preds_path):
 
     base_train_args = load_file(train_args_path)
     base_predict_args = load_file(pred_args_path)
@@ -81,7 +86,8 @@ def main(train_args_path, pred_args_path, data_dir):
 
             # Predicting
             pred_args_dict = append_predict_args(base_predict_args,
-                                                 train_args_dict['--save_dir'])
+                                                 train_args_dict['--save_dir'],
+                                                 preds_path)
             predict_outside(pred_args_dict)
 
             # Analysis
@@ -101,6 +107,9 @@ if __name__ == '__main__':
                         help='Path to a json file with basic predict args')
     parser.add_argument('data_dir', type=str,
                         help='Path to directory with datasets to use')
+    parser.add_argument('--preds_path', type=str, default=None,
+                        help='Path to dataset to use for predictions')
     args = parser.parse_args()
 
-    main(args.train_args_path, args.pred_args_path, args.data_dir)
+    main(args.train_args_path, args.pred_args_path,
+         args.data_dir, args.preds_path)
