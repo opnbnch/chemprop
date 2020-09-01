@@ -328,7 +328,9 @@ class GaussianProcessEstimator(ExposureEstimator):
 
         for task in range(self.num_tasks):
             kernel = GPy.kern.Linear(input_dim=self.args.hidden_size)
-            gaussian = GPy.models.SparseGPRegression(
+
+            # Was sparse -- maybe thats why values so close?
+            gaussian = GPy.models.GPRegression(
                 avg_last_hidden,
                 transformed_targets[:, task:task + 1], kernel)
 
