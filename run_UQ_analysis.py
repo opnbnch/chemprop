@@ -29,6 +29,7 @@ def append_train_args(base_args, data_name, path, uncertainty):
     :str path: path of dataset currently being used
     :str uncertainty: UQ method being used
     """
+
     save_dir = 'ckpnts/' + uncertainty + '_' + data_name[:-4]
     features_path = 'features/' + data_name[:-4] + '_features.npz'
 
