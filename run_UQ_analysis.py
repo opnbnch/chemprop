@@ -68,10 +68,13 @@ def append_predict_args(base_args, ckpnt_path, test_path, preds_dir):
     return base_copy
 
 
-def main(train_args_path, pred_args_path, data_dir, test_path, preds_dir):
+def main(args_dir, data_dir, test_path, preds_dir):
 
+    # Expect file names in args_dir to be of this format
+    train_args_path = os.path.join(args_dir, 'train_args.json')
+    predict_args_path = os.path.join(args_dir, 'predict_args.json')
     base_train_args = load_file(train_args_path)
-    base_predict_args = load_file(pred_args_path)
+    base_predict_args = load_file(predict_args_path)
 
     dataset_list = [f for f in os.listdir(data_dir) if not f.startswith('.')]
 
@@ -104,10 +107,8 @@ def main(train_args_path, pred_args_path, data_dir, test_path, preds_dir):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('train_args_path', type=str,
-                        help='Path to a json file with basic train args')
-    parser.add_argument('pred_args_path', type=str,
-                        help='Path to a json file with basic predict args')
+    parser.add_argument('args_dir', type=str,
+                        help='Path to directory with base args')
     parser.add_argument('data_dir', type=str,
                         help='Path to directory with datasets to use')
     parser.add_argument('--test_path', type=str, default=None,
@@ -116,5 +117,4 @@ if __name__ == '__main__':
                         help='Path to directory to save predictions')
     args = parser.parse_args()
 
-    main(args.train_args_path, args.pred_args_path,
-         args.data_dir, args.test_path, args.preds_dir)
+    main(args.args_dir, args.data_dir, args.test_path, args.preds_dir)
