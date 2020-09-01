@@ -69,6 +69,14 @@ def append_predict_args(base_args, ckpnt_path, test_path, preds_dir):
 
 
 def main(args_dir, data_dir, test_path, preds_dir):
+    """
+    Main function to control reading in args files, appending new
+    args to them, and training, predicting, and analyzing data.
+    :str args_dir: directory to args files
+    :str data_dir: directory that holds all data to anaylze
+    :str test_path: optional path to test csv to use
+    :str preds_dir: optional directory to hold predictions
+    """
 
     # Expect file names in args_dir to be of this format
     train_args_path = os.path.join(args_dir, 'train_args.json')
