@@ -120,7 +120,7 @@ class Dropout_VI(UncertaintyEstimator):
         avg_preds = np.nanmean(self.sum_batch, 1).tolist()
         avg_UQ = get_avg_UQ(self.sum_var, avg_preds, self.sum_batch, return_both=self.split_UQ)
 
-        return avg_preds, avg_UQ
+        return avg_preds, self._scale_uncertainty(avg_UQ)
 
 
 class Ensemble_estimator(UncertaintyEstimator):
@@ -162,7 +162,7 @@ class Ensemble_estimator(UncertaintyEstimator):
         if self.split_UQ:
             return avg_preds, (aleatoric, epistemic)
         else:
-            return avg_preds, total_unc
+            return avg_preds, self._scale_uncertainty(total_unc)
 
 
 class ExposureEstimator(UncertaintyEstimator):
@@ -178,6 +178,7 @@ class ExposureEstimator(UncertaintyEstimator):
         super().__init__(args, data, scaler)
 
         self.sum_last_hidden = np.zeros((len(self.data.smiles()), self.args.hidden_size))
+        self.final_preds = np.zeros((len(self.data.smiles()), 1))
         self.num_models = self.args.num_folds
 
     def process_model(self, model: nn.Module, N=0):
@@ -194,6 +195,14 @@ class ExposureEstimator(UncertaintyEstimator):
 
         self.sum_last_hidden += np.array(last_hidden)
         self.counter += 1
+
+        # Get normal preds too
+        preds = predict(
+            model=model,
+            data_loader=self.data_loader,
+            scaler=self.scaler
+        )
+        self.final_preds += np.array(preds)
 
     def _compute_hidden_vals(self):
         avg_last_hidden = self.sum_last_hidden / self.counter
@@ -299,7 +308,8 @@ class GaussianProcessEstimator(ExposureEstimator):
         test_predictions = np.nanmean(test_predictions, 1)
         test_uncertainty = np.nanmean(test_uncertainty, 1)
 
-        test_preds = self.scaler.inverse_transform(test_predictions).tolist()
+        # test_preds = self.scaler.inverse_transform(test_predictions).tolist()
+        test_preds = [item for sublist in self.final_preds for item in sublist]
         var_preds = self._scale_uncertainty(test_uncertainty).tolist()
 
         # TODO: Test returning average of D-MPNN preds instead of Gaussian pred
