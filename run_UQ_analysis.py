@@ -42,19 +42,21 @@ def append_train_args(base_args, data_name, path, uncertainty):
     return base_copy
 
 
-def append_predict_args(base_args, ckpnt_path, test_path):
+def append_predict_args(base_args, ckpnt_path, test_path, preds_dir):
     """
     Appends dataset and UQ specific args to the base predict args.
     :dict base_args: basic predict args
     :str ckpnt_path: current ckpnt loc
     :str test_path: path to test csv to use, None by default
+    :str preds_dir: directory to save preds, None by default
     """
 
     if not test_path:
         test_path = os.path.join(ckpnt_path, 'fold_0', 'test_full.csv')
 
     preds_file_name = ckpnt_path.split('/')[-1]
-    preds_path = os.path.join('predictions', preds_file_name + '_preds.csv')
+    directory = preds_dir if preds_dir is not None else 'predictions'
+    preds_path = os.path.join(directory, preds_file_name + '_preds.csv')
 
     additional_args = {'--test_path': test_path,
                        '--preds_path': preds_path,
@@ -66,7 +68,7 @@ def append_predict_args(base_args, ckpnt_path, test_path):
     return base_copy
 
 
-def main(train_args_path, pred_args_path, data_dir, test_path):
+def main(train_args_path, pred_args_path, data_dir, test_path, preds_dir):
 
     base_train_args = load_file(train_args_path)
     base_predict_args = load_file(pred_args_path)
@@ -87,7 +89,8 @@ def main(train_args_path, pred_args_path, data_dir, test_path):
             # Predicting
             pred_args_dict = append_predict_args(base_predict_args,
                                                  train_args_dict['--save_dir'],
-                                                 test_path)
+                                                 test_path,
+                                                 preds_dir)
             predict_outside(pred_args_dict)
 
             # Analysis
@@ -109,7 +112,9 @@ if __name__ == '__main__':
                         help='Path to directory with datasets to use')
     parser.add_argument('--test_path', type=str, default=None,
                         help='Path to dataset to use for predictions')
+    parser.add_argument('--preds_dir', type=str, default=None,
+                        help='Path to directory to save predictions')
     args = parser.parse_args()
 
     main(args.train_args_path, args.pred_args_path,
-         args.data_dir, args.test_path)
+         args.data_dir, args.test_path, args.preds_dir)
